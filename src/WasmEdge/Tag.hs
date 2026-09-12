@@ -1,14 +1,15 @@
--- |
--- Module      : WasmEdge.Tag
--- Description : WasmEdge tag types and tag instances (Wasm exception handling proposal)
--- Copyright   : (c) wasmedge-hs contributors, 2026
--- License     : Apache-2.0
--- Stability   : stable
---
--- Supports the WebAssembly Exception Handling proposal (WasmEdge 0.18+):
---
--- * 'TagType' — describes the signature (parameter types) associated with an exception tag
--- * 'TagInstance' — a runtime tag instance retrieved from a module instance
+{- |
+Module      : WasmEdge.Tag
+Description : WasmEdge tag types and tag instances (Wasm exception handling proposal)
+Copyright   : (c) wasmedge-hs contributors, 2026
+License     : Apache-2.0
+Stability   : stable
+
+Supports the WebAssembly Exception Handling proposal (WasmEdge 0.18+):
+
+* 'TagType' — describes the signature (parameter types) associated with an exception tag
+* 'TagInstance' — a runtime tag instance retrieved from a module instance
+-}
 module WasmEdge.Tag
   ( -- * Tag type
     TagType (..)
@@ -25,21 +26,22 @@ module WasmEdge.Tag
   , unsafeTagInstancePtr
   ) where
 
-import Foreign.Ptr           (Ptr, nullPtr)
-import Control.Exception     (throwIO)
+import Control.Exception (throwIO)
+import Foreign.Ptr (Ptr, nullPtr)
 
 import WasmEdge.Error
-import WasmEdge.Function     (FunctionType, borrowFunctionType)
-import WasmEdge.Internal.Types     (TagTypeTag, TagInstanceTag)
-import WasmEdge.Internal.Ownership (BorrowedCtx (..))
+import WasmEdge.Function (FunctionType, borrowFunctionType)
 import WasmEdge.Internal.FFI.Instance (c_TagInstanceGetTagType, c_TagTypeGetFunctionType)
+import WasmEdge.Internal.Ownership (BorrowedCtx (..))
+import WasmEdge.Internal.Types (TagInstanceTag, TagTypeTag)
 
 -- ---------------------------------------------------------------------------
 -- TagType
 -- ---------------------------------------------------------------------------
 
--- | A WebAssembly tag type describing the parameter types of an exception tag.
--- Tag types are owned by the module / runtime and accessed via borrowed reference.
+{- | A WebAssembly tag type describing the parameter types of an exception tag.
+Tag types are owned by the module / runtime and accessed via borrowed reference.
+-}
 newtype TagType = TagType (BorrowedCtx TagTypeTag)
   deriving stock (Eq)
 

@@ -1,12 +1,13 @@
--- |
--- Module      : WasmEdge.Plugin
--- Description : WasmEdge plugin discovery, loading, and module instantiation
--- Copyright   : (c) wasmedge-hs contributors, 2026
--- License     : Apache-2.0
--- Stability   : stable
---
--- The WasmEdge plugin system allows loading native dynamic libraries that provide
--- custom host modules (such as WASI-NN, WASI-Crypto, etc.).
+{- |
+Module      : WasmEdge.Plugin
+Description : WasmEdge plugin discovery, loading, and module instantiation
+Copyright   : (c) wasmedge-hs contributors, 2026
+License     : Apache-2.0
+Stability   : stable
+
+The WasmEdge plugin system allows loading native dynamic libraries that provide
+custom host modules (such as WASI-NN, WASI-Crypto, etc.).
+-}
 module WasmEdge.Plugin
   ( -- * Plugin discovery & loading
     loadPluginsWithDefaultPaths
@@ -28,22 +29,22 @@ module WasmEdge.Plugin
   , borrowPlugin
   ) where
 
-import Control.Monad         (forM)
-import Data.Text             (Text)
-import qualified Data.Text.Encoding as TE
-import qualified Data.ByteString    as BS
-import Foreign.C.String      (CString, withCString)
+import Control.Monad (forM)
+import Data.ByteString qualified as BS
+import Data.Text (Text)
+import Data.Text.Encoding qualified as TE
+import Data.Word (Word32)
+import Foreign.C.String (CString, withCString)
 import Foreign.Marshal.Alloc (allocaBytes)
 import Foreign.Marshal.Array (withArray)
-import Foreign.Ptr           (Ptr, nullPtr, plusPtr)
-import Data.Word             (Word32)
+import Foreign.Ptr (Ptr, nullPtr, plusPtr)
 
-import WasmEdge.Module       (ModuleInstance (..), borrowModule)
-import WasmEdge.Internal.Types     (PluginTag)
-import WasmEdge.Internal.Ownership (BorrowedCtx (..))
-import WasmEdge.Internal.Storable  (CString_, stringSize, allocaCString)
-import WasmEdge.Internal.Utils     (withWasmString, peekWasmString)
 import WasmEdge.Internal.FFI.Plugin
+import WasmEdge.Internal.Ownership (BorrowedCtx (..))
+import WasmEdge.Internal.Storable (CString_, allocaCString, stringSize)
+import WasmEdge.Internal.Types (PluginTag)
+import WasmEdge.Internal.Utils (peekWasmString, withWasmString)
+import WasmEdge.Module (ModuleInstance (..), borrowModule)
 
 -- ---------------------------------------------------------------------------
 -- Plugin discovery
@@ -71,8 +72,9 @@ listPlugins = do
 -- Plugin context
 -- ---------------------------------------------------------------------------
 
--- | A loaded WasmEdge plugin.
--- Plugins are managed by the global runtime and referenced as borrowed contexts.
+{- | A loaded WasmEdge plugin.
+Plugins are managed by the global runtime and referenced as borrowed contexts.
+-}
 newtype Plugin = Plugin (BorrowedCtx PluginTag)
   deriving stock (Eq)
 
@@ -141,6 +143,6 @@ withCStrings texts action = go texts []
     go [] acc =
       withArray (reverse acc) $ \ptr ->
         action (fromIntegral (length texts)) ptr
-    go (t:ts) acc =
+    go (t : ts) acc =
       BS.useAsCString (TE.encodeUtf8 t) $ \cstr ->
         go ts (cstr : acc)

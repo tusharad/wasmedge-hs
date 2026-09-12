@@ -1,10 +1,11 @@
 {-# LANGUAGE OverloadedStrings #-}
+
 module Main (main) where
 
-import qualified Data.ByteString as BS
-import WasmEdge.VM
-import WasmEdge.Types
+import Data.ByteString qualified as BS
 import WasmEdge.Error (formatError)
+import WasmEdge.Types
+import WasmEdge.VM
 
 -- Minimal add function WebAssembly module bytecode:
 -- (module
@@ -13,17 +14,50 @@ import WasmEdge.Error (formatError)
 --     local.get 1
 --     i32.add))
 addWasm :: BS.ByteString
-addWasm = BS.pack
-  [ 0x00, 0x61, 0x73, 0x6D, 0x01, 0x00, 0x00, 0x00  -- magic & version 1
-  , 0x01, 0x07, 0x01, 0x60, 0x02, 0x7F, 0x7F, 0x01, 0x7F -- type: (i32, i32) -> i32
-  , 0x03, 0x02, 0x01, 0x00                          -- function 0 has type 0
-  , 0x07, 0x07, 0x01, 0x03, 0x61, 0x64, 0x64, 0x00, 0x00 -- export "add"
-  , 0x0A, 0x09, 0x01, 0x07, 0x00                   -- code body
-    , 0x20, 0x00                                   -- local.get 0
-    , 0x20, 0x01                                   -- local.get 1
-    , 0x6A                                         -- i32.add
-    , 0x0B                                         -- end
-  ]
+addWasm =
+  BS.pack
+    [ 0x00
+    , 0x61
+    , 0x73
+    , 0x6D
+    , 0x01
+    , 0x00
+    , 0x00
+    , 0x00 -- magic & version 1
+    , 0x01
+    , 0x07
+    , 0x01
+    , 0x60
+    , 0x02
+    , 0x7F
+    , 0x7F
+    , 0x01
+    , 0x7F -- type: (i32, i32) -> i32
+    , 0x03
+    , 0x02
+    , 0x01
+    , 0x00 -- function 0 has type 0
+    , 0x07
+    , 0x07
+    , 0x01
+    , 0x03
+    , 0x61
+    , 0x64
+    , 0x64
+    , 0x00
+    , 0x00 -- export "add"
+    , 0x0A
+    , 0x09
+    , 0x01
+    , 0x07
+    , 0x00 -- code body
+    , 0x20
+    , 0x00 -- local.get 0
+    , 0x20
+    , 0x01 -- local.get 1
+    , 0x6A -- i32.add
+    , 0x0B -- end
+    ]
 
 main :: IO ()
 main = do

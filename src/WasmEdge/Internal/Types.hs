@@ -1,16 +1,18 @@
--- |
--- Module      : WasmEdge.Internal.Types
--- Description : Phantom type tags and opaque context wrappers for WasmEdge C contexts
--- Copyright   : (c) wasmedge-hs contributors, 2026
--- License     : Apache-2.0
--- Stability   : internal
---
--- This module defines the phantom type tags used to distinguish different
--- WasmEdge context types at the Haskell type level, as well as the
--- 'OwnedCtx' and 'BorrowedCtx' wrappers that encode ownership semantics.
---
--- __Do not import this module in user code.__ Use the public API modules instead.
 {-# LANGUAGE EmptyDataDecls #-}
+
+{- |
+Module      : WasmEdge.Internal.Types
+Description : Phantom type tags and opaque context wrappers for WasmEdge C contexts
+Copyright   : (c) wasmedge-hs contributors, 2026
+License     : Apache-2.0
+Stability   : internal
+
+This module defines the phantom type tags used to distinguish different
+WasmEdge context types at the Haskell type level, as well as the
+'OwnedCtx' and 'BorrowedCtx' wrappers that encode ownership semantics.
+
+__Do not import this module in user code.__ Use the public API modules instead.
+-}
 module WasmEdge.Internal.Types
   ( -- * Phantom context tags
     ConfigureTag
@@ -38,6 +40,7 @@ module WasmEdge.Internal.Types
   , AsyncTag
   , VMTag
   , PluginTag
+
     -- * C struct phantom types
   , CWasmString
   , CWasmBytes

@@ -1,20 +1,19 @@
 -- | Unit tests for WasmEdge value encoding/decoding roundtrips
 module Test.Unit.ValueSpec (spec) where
 
-import Test.Hspec
-import Data.Int  (Int32, Int64)
+import Data.Int (Int32, Int64)
 import Foreign.C (CBool (..))
 import Foreign.Marshal.Alloc (allocaBytes)
 import Foreign.Ptr
+import Test.Hspec
 
+import WasmEdge.Internal.FFI.Value
+import WasmEdge.Internal.Storable (CValType_, allocaCValue)
 import WasmEdge.Types
 import WasmEdge.Value
-import WasmEdge.Internal.Storable (allocaCValue, CValType_)
-import WasmEdge.Internal.FFI.Value
 
 spec :: Spec
 spec = describe "WasmEdge value encoding" $ do
-
   describe "I32 roundtrip" $ do
     it "encodes and decodes 0" $ roundtripI32 0
     it "encodes and decodes maxBound" $ roundtripI32 maxBound
@@ -81,14 +80,14 @@ roundtripF32 v = do
   val <- encodeDecodeVal (WasmF32 v)
   case val of
     WasmF32 v' -> v' `shouldBe` v
-    _           -> expectationFailure "Expected WasmF32"
+    _ -> expectationFailure "Expected WasmF32"
 
 roundtripF64 :: Double -> IO ()
 roundtripF64 v = do
   val <- encodeDecodeVal (WasmF64 v)
   case val of
     WasmF64 v' -> v' `shouldBe` v
-    _           -> expectationFailure "Expected WasmF64"
+    _ -> expectationFailure "Expected WasmF64"
 
 encodeDecodeVal :: WasmVal -> IO WasmVal
 encodeDecodeVal val = encodeVal val decodeVal

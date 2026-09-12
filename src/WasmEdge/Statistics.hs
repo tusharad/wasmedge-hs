@@ -1,9 +1,10 @@
--- |
--- Module      : WasmEdge.Statistics
--- Description : WasmEdge statistics context
--- Copyright   : (c) wasmedge-hs contributors, 2026
--- License     : Apache-2.0
--- Stability   : stable
+{- |
+Module      : WasmEdge.Statistics
+Description : WasmEdge statistics context
+Copyright   : (c) wasmedge-hs contributors, 2026
+License     : Apache-2.0
+Stability   : stable
+-}
 module WasmEdge.Statistics
   ( Statistics
   , createStatistics
@@ -15,21 +16,22 @@ module WasmEdge.Statistics
   , setStatCostTable
   , setStatCostLimit
   , clearStatistics
+
     -- * Internal / borrowed pointers
   , unsafeStatisticsPtr
   , borrowStatistics
   ) where
 
-import Control.Exception           (bracket, throwIO)
-import Data.Word                   (Word64)
-import Foreign.C                   (CDouble (..))
-import Foreign.Marshal.Array       (withArray)
+import Control.Exception (bracket, throwIO)
+import Data.Word (Word64)
+import Foreign.C (CDouble (..))
+import Foreign.Marshal.Array (withArray)
 import Foreign.Ptr
 
 import WasmEdge.Error
-import WasmEdge.Internal.Types
-import WasmEdge.Internal.Ownership
 import WasmEdge.Internal.FFI.Configure
+import WasmEdge.Internal.Ownership
+import WasmEdge.Internal.Types
 
 newtype Statistics = Statistics (OwnedCtx StatisticsTag)
 
@@ -60,8 +62,8 @@ getTotalCost (Statistics o) = withOwned o c_StatisticsGetTotalCost
 setStatCostTable :: Statistics -> [Word64] -> IO ()
 setStatCostTable (Statistics o) costs =
   withOwned o $ \p ->
-  withArray costs $ \arr ->
-    c_StatisticsSetCostTable p arr (fromIntegral (length costs))
+    withArray costs $ \arr ->
+      c_StatisticsSetCostTable p arr (fromIntegral (length costs))
 
 setStatCostLimit :: Statistics -> Word64 -> IO ()
 setStatCostLimit (Statistics o) limit = withOwned o $ \p ->
@@ -79,7 +81,7 @@ borrowStatistics :: Ptr StatisticsTag -> IO Statistics
 borrowStatistics p = Statistics <$> mkOwned (\_ -> pure ()) p
 
 appFunPtr :: FunPtr (Ptr a -> IO ()) -> Ptr a -> IO ()
-appFunPtr fp p = mkDeleter fp p
+appFunPtr = mkDeleter
 
 foreign import ccall "dynamic"
   mkDeleter :: FunPtr (Ptr a -> IO ()) -> Ptr a -> IO ()

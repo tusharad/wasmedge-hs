@@ -1,15 +1,16 @@
--- |
--- Module      : WasmEdge.Memory
--- Description : WasmEdge linear memory contexts
--- Copyright   : (c) wasmedge-hs contributors, 2026
--- License     : Apache-2.0
--- Stability   : stable
---
--- Provides types and functions for inspecting and manipulating WebAssembly
--- linear memory instances:
---
--- * 'MemoryType' — describes the page limits of a linear memory
--- * 'MemoryInstance' — a runtime linear memory instance with byte-level read/write
+{- |
+Module      : WasmEdge.Memory
+Description : WasmEdge linear memory contexts
+Copyright   : (c) wasmedge-hs contributors, 2026
+License     : Apache-2.0
+Stability   : stable
+
+Provides types and functions for inspecting and manipulating WebAssembly
+linear memory instances:
+
+* 'MemoryType' — describes the page limits of a linear memory
+* 'MemoryInstance' — a runtime linear memory instance with byte-level read/write
+-}
 module WasmEdge.Memory
   ( -- * Memory type
     MemoryType
@@ -39,23 +40,23 @@ module WasmEdge.Memory
   , disarmMemory
   ) where
 
-import Control.Exception     (bracket, throwIO)
-import Data.ByteString       (ByteString)
-import qualified Data.ByteString        as BS
-import qualified Data.ByteString.Unsafe as UBS
-import Foreign.C             (CBool (..))
+import Control.Exception (bracket, throwIO)
+import Data.ByteString (ByteString)
+import Data.ByteString qualified as BS
+import Data.ByteString.Unsafe qualified as UBS
+import Data.Word (Word32, Word8)
+import Foreign.C (CBool (..))
 import Foreign.Marshal.Alloc (alloca, allocaBytes)
-import Foreign.Ptr           (Ptr, FunPtr, nullPtr, castPtr)
-import Foreign.Storable      (peek)
-import Data.Word             (Word8, Word32)
+import Foreign.Ptr (FunPtr, Ptr, castPtr, nullPtr)
+import Foreign.Storable (peek)
 
-import WasmEdge.Types
 import WasmEdge.Error
-import WasmEdge.Internal.Types     (MemoryTypeTag, MemoryInstanceTag)
-import WasmEdge.Internal.Ownership (OwnedCtx, mkOwned, withOwned, finalizeOwned, disarmOwned)
-import WasmEdge.Internal.Storable  (allocaCResult)
-import WasmEdge.Internal.Utils     (checkResult)
 import WasmEdge.Internal.FFI.Instance
+import WasmEdge.Internal.Ownership (OwnedCtx, disarmOwned, finalizeOwned, mkOwned, withOwned)
+import WasmEdge.Internal.Storable (allocaCResult)
+import WasmEdge.Internal.Types (MemoryInstanceTag, MemoryTypeTag)
+import WasmEdge.Internal.Utils (checkResult)
+import WasmEdge.Types
 
 -- ---------------------------------------------------------------------------
 -- MemoryType
@@ -64,15 +65,16 @@ import WasmEdge.Internal.FFI.Instance
 -- | A WebAssembly linear memory type, specifying min/max page limits.
 newtype MemoryType = MemoryType (OwnedCtx MemoryTypeTag)
 
--- | Create a 'MemoryType' with the given 'Limit'.
--- 1 page = 64 KiB (65,536 bytes).
+{- | Create a 'MemoryType' with the given 'Limit'.
+1 page = 64 KiB (65,536 bytes).
+-}
 createMemoryType :: Limit -> IO MemoryType
 createMemoryType lim = do
-  let hasMax  = CBool (case limitMax lim of Just _ -> 1; Nothing -> 0)
+  let hasMax = CBool (case limitMax lim of Just _ -> 1; Nothing -> 0)
       minPage = fromIntegral (limitMin lim)
-      maxPage = case limitMax lim of Just m -> fromIntegral m; Nothing -> 0
-      shared  = CBool (if limitShared lim then 1 else 0)
-      is64    = CBool 0
+      maxPage = maybe 0 fromIntegral (limitMax lim)
+      shared = CBool (if limitShared lim then 1 else 0)
+      is64 = CBool 0
   p <- c_MemoryTypeCreate hasMax minPage maxPage shared is64
   if p == nullPtr
     then throwIO $ WasmEdgeError ErrCategory_WASM 0 "WasmEdge_MemoryTypeCreate returned NULL"
@@ -94,20 +96,21 @@ getMemoryTypeLimit (MemoryType o) =
     if limPtr == nullPtr
       then pure (Limit 0 Nothing False)
       else alloca $ \hasMaxPtr ->
-           alloca $ \minPtr ->
-           alloca $ \maxPtr ->
-           alloca $ \sharedPtr ->
-           alloca $ \is64Ptr -> do
-             c_LimitGetInfo limPtr hasMaxPtr minPtr maxPtr sharedPtr is64Ptr
-             CBool hasMax <- peek hasMaxPtr
-             minVal       <- peek minPtr
-             maxVal       <- peek maxPtr
-             CBool shared <- peek sharedPtr
-             pure Limit
-               { limitMin    = fromIntegral minVal
-               , limitMax    = if hasMax /= 0 then Just (fromIntegral maxVal) else Nothing
-               , limitShared = shared /= 0
-               }
+        alloca $ \minPtr ->
+          alloca $ \maxPtr ->
+            alloca $ \sharedPtr ->
+              alloca $ \is64Ptr -> do
+                c_LimitGetInfo limPtr hasMaxPtr minPtr maxPtr sharedPtr is64Ptr
+                CBool hasMax <- peek hasMaxPtr
+                minVal <- peek minPtr
+                maxVal <- peek maxPtr
+                CBool shared <- peek sharedPtr
+                pure
+                  Limit
+                    { limitMin = fromIntegral minVal
+                    , limitMax = if hasMax /= 0 then Just (fromIntegral maxVal) else Nothing
+                    , limitShared = shared /= 0
+                    }
 
 -- ---------------------------------------------------------------------------
 -- MemoryInstance
@@ -146,25 +149,26 @@ getMemoryType (MemoryInstance o) =
 getMemoryData :: MemoryInstance -> Word32 -> Word32 -> IO (WasmResult ByteString)
 getMemoryData (MemoryInstance o) offset len =
   withOwned o $ \p ->
-  allocaBytes (fromIntegral len) $ \buf ->
-  allocaCResult $ \resPtr -> do
-    c_MemoryInstanceGetData resPtr p (castPtr buf) offset len
-    res <- checkResult resPtr
-    case res of
-      Left err -> pure (Left err)
-      Right () -> Right <$> BS.packCStringLen (buf, fromIntegral len)
+    allocaBytes (fromIntegral len) $ \buf ->
+      allocaCResult $ \resPtr -> do
+        c_MemoryInstanceGetData resPtr p (castPtr buf) offset len
+        res <- checkResult resPtr
+        case res of
+          Left err -> pure (Left err)
+          Right () -> Right <$> BS.packCStringLen (buf, fromIntegral len)
 
 -- | Write a 'ByteString' into linear memory starting at @offset@.
 setMemoryData :: MemoryInstance -> Word32 -> ByteString -> IO (WasmResult ())
 setMemoryData (MemoryInstance o) offset bs =
   withOwned o $ \p ->
-  UBS.unsafeUseAsCStringLen bs $ \(buf, len) ->
-  allocaCResult $ \resPtr -> do
-    c_MemoryInstanceSetData resPtr p (castPtr buf) offset (fromIntegral len)
-    checkResult resPtr
+    UBS.unsafeUseAsCStringLen bs $ \(buf, len) ->
+      allocaCResult $ \resPtr -> do
+        c_MemoryInstanceSetData resPtr p (castPtr buf) offset (fromIntegral len)
+        checkResult resPtr
 
--- | Get a direct pointer to linear memory at @offset@ for @length@ bytes.
--- The pointer is valid only as long as the memory is not grown and the instance is alive.
+{- | Get a direct pointer to linear memory at @offset@ for @length@ bytes.
+The pointer is valid only as long as the memory is not grown and the instance is alive.
+-}
 getMemoryPointer :: MemoryInstance -> Word32 -> Word32 -> IO (Ptr Word8)
 getMemoryPointer (MemoryInstance o) offset len =
   withOwned o $ \p -> c_MemoryInstanceGetPointer p offset len
@@ -183,9 +187,9 @@ getMemoryPageSize (MemoryInstance o) =
 growMemoryPages :: MemoryInstance -> Word32 -> IO (WasmResult ())
 growMemoryPages (MemoryInstance o) pageCount =
   withOwned o $ \p ->
-  allocaCResult $ \resPtr -> do
-    c_MemoryInstanceGrowPage resPtr p pageCount
-    checkResult resPtr
+    allocaCResult $ \resPtr -> do
+      c_MemoryInstanceGrowPage resPtr p pageCount
+      checkResult resPtr
 
 -- ---------------------------------------------------------------------------
 -- Unsafe / internal pointer helpers
@@ -216,7 +220,7 @@ disarmMemory (MemoryInstance o) = disarmOwned o
 -- ---------------------------------------------------------------------------
 
 appFunPtr :: FunPtr (Ptr a -> IO ()) -> Ptr a -> IO ()
-appFunPtr fp p = mkDeleter fp p
+appFunPtr = mkDeleter
 
 foreign import ccall "dynamic"
   mkDeleter :: FunPtr (Ptr a -> IO ()) -> Ptr a -> IO ()

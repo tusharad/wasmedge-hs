@@ -1,13 +1,14 @@
 {-# LANGUAGE OverloadedStrings #-}
+
 module Main (main) where
 
-import qualified Data.ByteString as BS
-import System.IO (hSetBuffering, stdout, BufferMode (..))
-import WasmEdge.VM
-import WasmEdge.Types
+import Data.ByteString qualified as BS
+import System.IO (BufferMode (..), hSetBuffering, stdout)
+import WasmEdge.Error (WasmResult, formatError)
 import WasmEdge.Function
 import WasmEdge.Module
-import WasmEdge.Error (formatError, WasmResult)
+import WasmEdge.Types
+import WasmEdge.VM
 
 -- WASM guest module that imports "add_one" from "host_module":
 -- (module
@@ -16,23 +17,79 @@ import WasmEdge.Error (formatError, WasmResult)
 --     local.get 0
 --     call $add_one))
 guestWasm :: BS.ByteString
-guestWasm = BS.pack
-  [ 0x00, 0x61, 0x73, 0x6D, 0x01, 0x00, 0x00, 0x00  -- magic & version 1
-  , 0x01, 0x06, 0x01, 0x60, 0x01, 0x7F, 0x01, 0x7F -- type 0: (i32) -> i32
-  , 0x02, 0x17, 0x01                                -- import section: 1 import
-    , 0x0B, 0x68, 0x6F, 0x73, 0x74, 0x5F, 0x6D, 0x6F, 0x64, 0x75, 0x6C, 0x65 -- "host_module"
-    , 0x07, 0x61, 0x64, 0x64, 0x5F, 0x6F, 0x6E, 0x65                         -- "add_one"
-    , 0x00, 0x00                                                              -- kind func, type 0
-  , 0x03, 0x02, 0x01, 0x00                          -- func 1 has type 0
-  , 0x07, 0x0D, 0x01                                -- export section: 1 export
-    , 0x09, 0x63, 0x61, 0x6C, 0x6C, 0x5F, 0x68, 0x6F, 0x73, 0x74             -- "call_host"
-    , 0x00, 0x01                                                              -- kind func, func idx 1
-  , 0x0A, 0x08, 0x01                                -- code section: 1 func
-    , 0x06, 0x00                                    -- size 6, 0 locals
-    , 0x20, 0x00                                    -- local.get 0
-    , 0x10, 0x00                                    -- call 0 (the imported func)
-    , 0x0B                                         -- end
-  ]
+guestWasm =
+  BS.pack
+    [ 0x00
+    , 0x61
+    , 0x73
+    , 0x6D
+    , 0x01
+    , 0x00
+    , 0x00
+    , 0x00 -- magic & version 1
+    , 0x01
+    , 0x06
+    , 0x01
+    , 0x60
+    , 0x01
+    , 0x7F
+    , 0x01
+    , 0x7F -- type 0: (i32) -> i32
+    , 0x02
+    , 0x17
+    , 0x01 -- import section: 1 import
+    , 0x0B
+    , 0x68
+    , 0x6F
+    , 0x73
+    , 0x74
+    , 0x5F
+    , 0x6D
+    , 0x6F
+    , 0x64
+    , 0x75
+    , 0x6C
+    , 0x65 -- "host_module"
+    , 0x07
+    , 0x61
+    , 0x64
+    , 0x64
+    , 0x5F
+    , 0x6F
+    , 0x6E
+    , 0x65 -- "add_one"
+    , 0x00
+    , 0x00 -- kind func, type 0
+    , 0x03
+    , 0x02
+    , 0x01
+    , 0x00 -- func 1 has type 0
+    , 0x07
+    , 0x0D
+    , 0x01 -- export section: 1 export
+    , 0x09
+    , 0x63
+    , 0x61
+    , 0x6C
+    , 0x6C
+    , 0x5F
+    , 0x68
+    , 0x6F
+    , 0x73
+    , 0x74 -- "call_host"
+    , 0x00
+    , 0x01 -- kind func, func idx 1
+    , 0x0A
+    , 0x08
+    , 0x01 -- code section: 1 func
+    , 0x06
+    , 0x00 -- size 6, 0 locals
+    , 0x20
+    , 0x00 -- local.get 0
+    , 0x10
+    , 0x00 -- call 0 (the imported func)
+    , 0x0B -- end
+    ]
 
 -- Haskell implementation of the host function
 haskellAddOne :: CallingFrame -> [WasmVal] -> IO (WasmResult [WasmVal])

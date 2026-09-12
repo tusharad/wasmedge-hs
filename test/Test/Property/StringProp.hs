@@ -1,18 +1,17 @@
 -- | Hedgehog property tests for WasmEdge_String roundtrips
 module Test.Property.StringProp (spec) where
 
+import Data.Text (Text)
+import Data.Text qualified as T
+import Hedgehog.Gen qualified as Gen
+import Hedgehog.Range qualified as Range
 import Test.Hspec
 import Test.Hspec.Hedgehog
-import qualified Hedgehog.Gen   as Gen
-import qualified Hedgehog.Range as Range
-import Data.Text (Text)
-import qualified Data.Text as T
 
-import WasmEdge.Internal.Utils  (withWasmString, peekWasmString)
+import WasmEdge.Internal.Utils (peekWasmString, withWasmString)
 
 spec :: Spec
 spec = describe "WasmEdge_String property tests" $ do
-
   it "ASCII string roundtrip" $ hedgehog prop_ascii_roundtrip
   it "UTF-8 string roundtrip" $ hedgehog prop_utf8_roundtrip
   it "empty string roundtrip" $ hedgehog prop_empty_roundtrip

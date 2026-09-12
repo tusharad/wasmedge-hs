@@ -1,14 +1,15 @@
--- |
--- Module      : WasmEdge.Executor
--- Description : WasmEdge executor context for low-level module lifecycle and invocation
--- Copyright   : (c) wasmedge-hs contributors, 2026
--- License     : Apache-2.0
--- Stability   : stable
---
--- The 'Executor' context executes WebAssembly instructions, manages module
--- instantiation, and invokes exported functions. It works together with 'Store'.
---
--- For the simplest usage, consider using the high-level 'WasmEdge.VM.VM' API instead.
+{- |
+Module      : WasmEdge.Executor
+Description : WasmEdge executor context for low-level module lifecycle and invocation
+Copyright   : (c) wasmedge-hs contributors, 2026
+License     : Apache-2.0
+Stability   : stable
+
+The 'Executor' context executes WebAssembly instructions, manages module
+instantiation, and invokes exported functions. It works together with 'Store'.
+
+For the simplest usage, consider using the high-level 'WasmEdge.VM.VM' API instead.
+-}
 module WasmEdge.Executor
   ( -- * Executor context
     Executor
@@ -40,30 +41,35 @@ module WasmEdge.Executor
   , borrowASTModule
   ) where
 
-import Control.Exception     (bracket, throwIO)
-import Data.ByteString       (ByteString)
-import Data.Text             (Text)
-import Foreign.C.String      (withCString)
+import Control.Exception (bracket, throwIO)
+import Data.ByteString (ByteString)
+import Data.Text (Text)
+import Data.Word (Word32)
+import Foreign.C.String (withCString)
 import Foreign.Marshal.Alloc (alloca)
-import Foreign.Ptr           (Ptr, FunPtr, nullPtr, castPtr)
-import Foreign.Storable      (peek)
-import Data.Word             (Word32)
+import Foreign.Ptr (FunPtr, Ptr, castPtr, nullPtr)
+import Foreign.Storable (peek)
 
-import WasmEdge.Types
+import WasmEdge.Async (Async (..), mkAsync)
+import WasmEdge.Configure (Configure, unsafeConfigurePtr)
 import WasmEdge.Error
-import WasmEdge.Value        (withValArray, peekValArray, withCValueArray)
-import WasmEdge.Configure    (Configure, unsafeConfigurePtr)
-import WasmEdge.Statistics   (Statistics, unsafeStatisticsPtr)
-import WasmEdge.Store        (Store, unsafeStorePtr)
-import WasmEdge.Module       (ModuleInstance (..), borrowModule, unsafeModulePtr)
-import WasmEdge.Function     (FunctionInstance, unsafeFunctionPtr, getFunctionType, getFunctionTypeReturns)
-import WasmEdge.Async        (Async (..), mkAsync)
-import WasmEdge.Internal.Types     (ExecutorTag, ASTModuleTag)
-import WasmEdge.Internal.Ownership (OwnedCtx, mkOwned, withOwned, finalizeOwned)
-import WasmEdge.Internal.Storable  (allocaCResult)
-import WasmEdge.Internal.Utils     (withWasmString, withWasmBytes, checkResult)
-import WasmEdge.Internal.FFI.AST   (c_ASTModuleDelete)
+import WasmEdge.Function
+  ( FunctionInstance
+  , getFunctionType
+  , getFunctionTypeReturns
+  , unsafeFunctionPtr
+  )
+import WasmEdge.Internal.FFI.AST (c_ASTModuleDelete)
 import WasmEdge.Internal.FFI.Execution
+import WasmEdge.Internal.Ownership (OwnedCtx, finalizeOwned, mkOwned, withOwned)
+import WasmEdge.Internal.Storable (allocaCResult)
+import WasmEdge.Internal.Types (ASTModuleTag, ExecutorTag)
+import WasmEdge.Internal.Utils (checkResult, withWasmBytes, withWasmString)
+import WasmEdge.Module (ModuleInstance (..), borrowModule, unsafeModulePtr)
+import WasmEdge.Statistics (Statistics, unsafeStatisticsPtr)
+import WasmEdge.Store (Store, unsafeStorePtr)
+import WasmEdge.Types
+import WasmEdge.Value (peekValArray, withCValueArray, withValArray)
 
 -- ---------------------------------------------------------------------------
 -- Executor context
@@ -75,7 +81,7 @@ newtype Executor = Executor (OwnedCtx ExecutorTag)
 -- | Create an 'Executor' with optional configuration and statistics contexts.
 createExecutor :: Maybe Configure -> Maybe Statistics -> IO Executor
 createExecutor mCfg mStat = do
-  cfgPtr  <- maybe (pure nullPtr) unsafeConfigurePtr  mCfg
+  cfgPtr <- maybe (pure nullPtr) unsafeConfigurePtr mCfg
   statPtr <- maybe (pure nullPtr) unsafeStatisticsPtr mStat
   p <- c_ExecutorCreate cfgPtr statPtr
   if p == nullPtr
@@ -104,18 +110,18 @@ loadASTFromFile path = do
   if loader == nullPtr
     then pure $ Left $ WasmEdgeError ErrCategory_WASM 0 "Failed to create Loader"
     else alloca $ \astOut ->
-         withCString path $ \cPath ->
-         allocaCResult $ \resPtr -> do
-           c_LoaderParseFromFile resPtr loader astOut cPath
-           res <- checkResult resPtr
-           appFunPtr c_LoaderDelete loader
-           case res of
-             Left err -> pure (Left err)
-             Right () -> do
-               astPtr <- peek astOut
-               if astPtr == nullPtr
-                 then pure $ Left $ WasmEdgeError ErrCategory_WASM 0 "Parsed ASTModule is NULL"
-                 else Right . ASTModule <$> mkOwned (appFunPtr c_ASTModuleDelete) astPtr
+      withCString path $ \cPath ->
+        allocaCResult $ \resPtr -> do
+          c_LoaderParseFromFile resPtr loader astOut cPath
+          res <- checkResult resPtr
+          appFunPtr c_LoaderDelete loader
+          case res of
+            Left err -> pure (Left err)
+            Right () -> do
+              astPtr <- peek astOut
+              if astPtr == nullPtr
+                then pure $ Left $ WasmEdgeError ErrCategory_WASM 0 "Parsed ASTModule is NULL"
+                else Right . ASTModule <$> mkOwned (appFunPtr c_ASTModuleDelete) astPtr
 
 -- | Load and parse an 'ASTModule' from an in-memory WASM binary.
 loadASTFromBytes :: ByteString -> IO (WasmResult ASTModule)
@@ -124,19 +130,19 @@ loadASTFromBytes bs = do
   if loader == nullPtr
     then pure $ Left $ WasmEdgeError ErrCategory_WASM 0 "Failed to create Loader"
     else alloca $ \astOut ->
-         withWasmBytes bs $ \bytesPtr ->
-         allocaCResult $ \resPtr -> do
-           -- Pass bytes pointer to loader
-           c_LoaderParseFromBytes resPtr loader astOut bytesPtr
-           res <- checkResult resPtr
-           appFunPtr c_LoaderDelete loader
-           case res of
-             Left err -> pure (Left err)
-             Right () -> do
-               astPtr <- peek astOut
-               if astPtr == nullPtr
-                 then pure $ Left $ WasmEdgeError ErrCategory_WASM 0 "Parsed ASTModule is NULL"
-                 else Right . ASTModule <$> mkOwned (appFunPtr c_ASTModuleDelete) astPtr
+      withWasmBytes bs $ \bytesPtr ->
+        allocaCResult $ \resPtr -> do
+          -- Pass bytes pointer to loader
+          c_LoaderParseFromBytes resPtr loader astOut bytesPtr
+          res <- checkResult resPtr
+          appFunPtr c_LoaderDelete loader
+          case res of
+            Left err -> pure (Left err)
+            Right () -> do
+              astPtr <- peek astOut
+              if astPtr == nullPtr
+                then pure $ Left $ WasmEdgeError ErrCategory_WASM 0 "Parsed ASTModule is NULL"
+                else Right . ASTModule <$> mkOwned (appFunPtr c_ASTModuleDelete) astPtr
 
 -- | Delete an 'ASTModule'.
 deleteASTModule :: ASTModule -> IO ()
@@ -167,45 +173,45 @@ validateAST (ASTModule o) =
 instantiateModule :: Executor -> Store -> ASTModule -> IO (WasmResult ModuleInstance)
 instantiateModule (Executor execOwned) store (ASTModule astOwned) =
   withOwned execOwned $ \execPtr ->
-  withOwned astOwned  $ \astPtr -> do
-    storePtr <- unsafeStorePtr store
-    alloca $ \outMod ->
-      allocaCResult $ \resPtr -> do
-        c_ExecutorInstantiate resPtr execPtr outMod storePtr astPtr
-        res <- checkResult resPtr
-        case res of
-          Left err -> pure (Left err)
-          Right () -> do
-            p <- peek outMod
-            if p == nullPtr
-              then pure $ Left $ WasmEdgeError ErrCategory_WASM 0 "Instantiate returned NULL module"
-              else Right <$> borrowModule p
+    withOwned astOwned $ \astPtr -> do
+      storePtr <- unsafeStorePtr store
+      alloca $ \outMod ->
+        allocaCResult $ \resPtr -> do
+          c_ExecutorInstantiate resPtr execPtr outMod storePtr astPtr
+          res <- checkResult resPtr
+          case res of
+            Left err -> pure (Left err)
+            Right () -> do
+              p <- peek outMod
+              if p == nullPtr
+                then pure $ Left $ WasmEdgeError ErrCategory_WASM 0 "Instantiate returned NULL module"
+                else Right <$> borrowModule p
 
 -- | Instantiate and register an 'ASTModule' under an export name into a 'Store'.
 registerModule :: Executor -> Store -> ASTModule -> Text -> IO (WasmResult ModuleInstance)
 registerModule (Executor execOwned) store (ASTModule astOwned) name =
   withOwned execOwned $ \execPtr ->
-  withOwned astOwned  $ \astPtr ->
-  withWasmString name $ \namePtr -> do
-    storePtr <- unsafeStorePtr store
-    alloca $ \outMod ->
-      allocaCResult $ \resPtr -> do
-        c_ExecutorRegister resPtr execPtr outMod storePtr astPtr namePtr
-        res <- checkResult resPtr
-        case res of
-          Left err -> pure (Left err)
-          Right () -> do
-            p <- peek outMod
-            if p == nullPtr
-              then pure $ Left $ WasmEdgeError ErrCategory_WASM 0 "Register returned NULL module"
-              else Right <$> borrowModule p
+    withOwned astOwned $ \astPtr ->
+      withWasmString name $ \namePtr -> do
+        storePtr <- unsafeStorePtr store
+        alloca $ \outMod ->
+          allocaCResult $ \resPtr -> do
+            c_ExecutorRegister resPtr execPtr outMod storePtr astPtr namePtr
+            res <- checkResult resPtr
+            case res of
+              Left err -> pure (Left err)
+              Right () -> do
+                p <- peek outMod
+                if p == nullPtr
+                  then pure $ Left $ WasmEdgeError ErrCategory_WASM 0 "Register returned NULL module"
+                  else Right <$> borrowModule p
 
 -- | Register a pre-created 'ModuleInstance' (e.g. host module or WASI) into a 'Store'.
 registerImportModule :: Executor -> Store -> ModuleInstance -> IO (WasmResult ())
 registerImportModule (Executor execOwned) store modInst =
   withOwned execOwned $ \execPtr -> do
     storePtr <- unsafeStorePtr store
-    modPtr   <- unsafeModulePtr modInst
+    modPtr <- unsafeModulePtr modInst
     allocaCResult $ \resPtr -> do
       c_ExecutorRegisterImport resPtr execPtr storePtr modPtr
       checkResult resPtr
@@ -218,18 +224,18 @@ registerImportModule (Executor execOwned) store modInst =
 invokeFunction :: Executor -> FunctionInstance -> [WasmVal] -> IO (WasmResult [WasmVal])
 invokeFunction (Executor execOwned) fn params =
   withOwned execOwned $ \execPtr -> do
-    fnPtr  <- unsafeFunctionPtr fn
-    ft     <- getFunctionType fn
+    fnPtr <- unsafeFunctionPtr fn
+    ft <- getFunctionType fn
     retTys <- getFunctionTypeReturns ft
     let rLen = fromIntegral (length retTys) :: Word32
     withValArray params $ \paramsPtr pLen ->
       withCValueArray (fromIntegral rLen) $ \retsPtr ->
-      allocaCResult $ \resPtr -> do
-        c_ExecutorInvoke resPtr execPtr fnPtr (castPtr paramsPtr) pLen (castPtr retsPtr) rLen
-        res <- checkResult resPtr
-        case res of
-          Left err -> pure (Left err)
-          Right () -> Right <$> peekValArray (castPtr retsPtr) rLen
+        allocaCResult $ \resPtr -> do
+          c_ExecutorInvoke resPtr execPtr fnPtr (castPtr paramsPtr) pLen (castPtr retsPtr) rLen
+          res <- checkResult resPtr
+          case res of
+            Left err -> pure (Left err)
+            Right () -> Right <$> peekValArray (castPtr retsPtr) rLen
 
 -- | Asynchronously invoke a 'FunctionInstance', returning an 'Async' handle.
 asyncInvokeFunction :: Executor -> FunctionInstance -> [WasmVal] -> IO Async
@@ -267,7 +273,7 @@ borrowASTModule p = ASTModule <$> mkOwned (\_ -> pure ()) p
 -- ---------------------------------------------------------------------------
 
 appFunPtr :: FunPtr (Ptr a -> IO ()) -> Ptr a -> IO ()
-appFunPtr fp p = mkDeleter fp p
+appFunPtr = mkDeleter
 
 foreign import ccall "dynamic"
   mkDeleter :: FunPtr (Ptr a -> IO ()) -> Ptr a -> IO ()

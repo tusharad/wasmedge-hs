@@ -1,10 +1,10 @@
 -- | Ownership model tests — verifies no double-free and lifecycle correctness
 module Test.Unit.OwnershipSpec (spec) where
 
-import Test.Hspec
-import Foreign.Ptr       (nullPtr)
-import System.Mem        (performMajorGC)
 import Data.IORef
+import Foreign.Ptr (nullPtr)
+import System.Mem (performMajorGC)
+import Test.Hspec
 
 import WasmEdge.Configure (createConfigure, deleteConfigure)
 import WasmEdge.Internal.Ownership
@@ -12,12 +12,11 @@ import WasmEdge.Internal.Types
 
 spec :: Spec
 spec = describe "Ownership model" $ do
-
   describe "OwnedCtx" $ do
     it "finalizer is called when OwnedCtx goes out of scope" $ do
       finalizerCalled <- newIORef False
       let finalizer _ = writeIORef finalizerCalled True
-      _ <- mkOwned finalizer nullPtr  -- will be GC'd
+      _ <- mkOwned finalizer nullPtr -- will be GC'd
       -- Force GC
       performMajorGC
       -- Note: GC timing is non-deterministic; this test is best-effort.

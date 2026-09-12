@@ -1,21 +1,21 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+
 -- | Tests for Host Functions, ToHostFunc typeclass, and Caller memory access
 module Test.Unit.HostFuncSpec (spec) where
 
-import Test.Hspec
+import Data.ByteString qualified as BS
 import Data.Int (Int32)
 import Data.Word (Word32)
-import qualified Data.ByteString as BS
+import Test.Hspec
 
 import WasmEdge
+import WasmEdge.Caller
 import WasmEdge.Function
 import WasmEdge.Module
-import WasmEdge.Caller
 
 spec :: Spec
 spec = describe "Host functions and Caller" $ do
-
   describe "ToHostFunc automatic signature and invocation" $ do
     it "creates host function for (Int32 -> Int32 -> IO Int32)" $ do
       fn <- createHostFunction $ \(x :: Int32) (y :: Int32) -> pure (x + 2 * y) :: IO Int32
@@ -50,7 +50,7 @@ spec = describe "Host functions and Caller" $ do
         runWasmBytes vm emptyModule "nonexistent" []
       case res of
         Left err -> weErrCategory err `shouldBe` ErrCategory_WASM
-        Right _  -> expectationFailure "Expected function not found error"
+        Right _ -> expectationFailure "Expected function not found error"
 
   describe "Caller memory helpers" $ do
     it "handles null caller gracefully" $ do

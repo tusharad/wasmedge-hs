@@ -1,14 +1,13 @@
 -- | Tests for WasmEdge version functions
 module Test.Unit.VersionSpec (spec) where
 
+import Data.List (isPrefixOf)
+import Foreign.C (peekCString)
 import Test.Hspec
-import Data.List  (isPrefixOf)
-import Foreign.C  (peekCString)
 import WasmEdge.Internal.FFI.Basic
 
 spec :: Spec
 spec = describe "WasmEdge version" $ do
-
   it "VersionGet returns a non-empty string" $ do
     cs <- c_VersionGet
     str <- peekCString cs

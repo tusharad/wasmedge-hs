@@ -1,18 +1,17 @@
 -- | Hedgehog property tests for WasmVal encoding
 module Test.Property.ValueProp (spec) where
 
+import Data.Int (Int32, Int64)
+import Hedgehog.Gen qualified as Gen
+import Hedgehog.Range qualified as Range
 import Test.Hspec
 import Test.Hspec.Hedgehog
-import qualified Hedgehog.Gen   as Gen
-import qualified Hedgehog.Range as Range
-import Data.Int (Int32, Int64)
 
 import WasmEdge.Types
 import WasmEdge.Value
 
 spec :: Spec
 spec = describe "WasmVal property tests" $ do
-
   it "I32 roundtrip: encode >> decode == id" $ hedgehog prop_i32_roundtrip
   it "I64 roundtrip: encode >> decode == id" $ hedgehog prop_i64_roundtrip
   it "F64 roundtrip: encode >> decode == id" $ hedgehog prop_f64_roundtrip
@@ -52,4 +51,4 @@ prop_f64_roundtrip = do
   result <- evalIO $ encodeVal (WasmF64 v) decodeVal
   case result of
     WasmF64 v' -> v' === v
-    other      -> footnote ("unexpected: " ++ show other) >> failure
+    other -> footnote ("unexpected: " ++ show other) >> failure

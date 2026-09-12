@@ -1,14 +1,15 @@
--- |
--- Module      : WasmEdge.Table
--- Description : WasmEdge table contexts
--- Copyright   : (c) wasmedge-hs contributors, 2026
--- License     : Apache-2.0
--- Stability   : stable
---
--- Provides types and functions for WebAssembly table instances and types:
---
--- * 'TableType' — describes reference type and element limits
--- * 'TableInstance' — a runtime table instance
+{- |
+Module      : WasmEdge.Table
+Description : WasmEdge table contexts
+Copyright   : (c) wasmedge-hs contributors, 2026
+License     : Apache-2.0
+Stability   : stable
+
+Provides types and functions for WebAssembly table instances and types:
+
+* 'TableType' — describes reference type and element limits
+* 'TableInstance' — a runtime table instance
+-}
 module WasmEdge.Table
   ( -- * Table type
     TableType
@@ -37,39 +38,40 @@ module WasmEdge.Table
   , disarmTable
   ) where
 
-import Control.Exception     (bracket, throwIO)
-import Foreign.C             (CBool (..))
+import Control.Exception (bracket, throwIO)
+import Data.Word (Word32)
+import Foreign.C (CBool (..))
 import Foreign.Marshal.Alloc (alloca)
-import Foreign.Ptr           (Ptr, FunPtr, nullPtr)
-import Foreign.Storable      (peek)
-import Data.Word             (Word32)
+import Foreign.Ptr (FunPtr, Ptr, nullPtr)
+import Foreign.Storable (peek)
 
-import WasmEdge.Types
 import WasmEdge.Error
-import WasmEdge.Value        (encodeVal, decodeVal, encodeValType, peekValTypes)
-import WasmEdge.Internal.Types     (TableTypeTag, TableInstanceTag)
-import WasmEdge.Internal.Ownership (OwnedCtx, mkOwned, withOwned, finalizeOwned, disarmOwned)
-import WasmEdge.Internal.Storable  (allocaCValType, allocaCValue, allocaCResult)
-import WasmEdge.Internal.Utils     (checkResult)
 import WasmEdge.Internal.FFI.Instance
+import WasmEdge.Internal.Ownership (OwnedCtx, disarmOwned, finalizeOwned, mkOwned, withOwned)
+import WasmEdge.Internal.Storable (allocaCResult, allocaCValType, allocaCValue)
+import WasmEdge.Internal.Types (TableInstanceTag, TableTypeTag)
+import WasmEdge.Internal.Utils (checkResult)
+import WasmEdge.Types
+import WasmEdge.Value (decodeVal, encodeVal, encodeValType, peekValTypes)
 
 -- ---------------------------------------------------------------------------
 -- TableType
 -- ---------------------------------------------------------------------------
 
--- | A WebAssembly table type, specifying the reference type (FuncRef or ExternRef)
--- and element limits.
+{- | A WebAssembly table type, specifying the reference type (FuncRef or ExternRef)
+and element limits.
+-}
 newtype TableType = TableType (OwnedCtx TableTypeTag)
 
 -- | Create a 'TableType' with the given element reference type and 'Limit'.
 createTableType :: ValType -> Limit -> IO TableType
 createTableType refType lim =
   encodeValType refType $ \vtPtr -> do
-    let hasMax  = CBool (case limitMax lim of Just _ -> 1; Nothing -> 0)
-        minVal  = fromIntegral (limitMin lim)
-        maxVal  = case limitMax lim of Just m -> fromIntegral m; Nothing -> 0
-        shared  = CBool (if limitShared lim then 1 else 0)
-        is64    = CBool 0
+    let hasMax = CBool (case limitMax lim of Just _ -> 1; Nothing -> 0)
+        minVal = fromIntegral (limitMin lim)
+        maxVal = maybe 0 fromIntegral (limitMax lim)
+        shared = CBool (if limitShared lim then 1 else 0)
+        is64 = CBool 0
     p <- c_TableTypeCreate vtPtr hasMax minVal maxVal shared is64
     if p == nullPtr
       then throwIO $ WasmEdgeError ErrCategory_WASM 0 "WasmEdge_TableTypeCreate returned NULL"
@@ -87,12 +89,12 @@ withTableType vt lim = bracket (createTableType vt lim) deleteTableType
 getTableTypeRefType :: TableType -> IO ValType
 getTableTypeRefType (TableType o) =
   withOwned o $ \p ->
-  allocaCValType $ \vtPtr -> do
-    c_TableTypeGetRefType p vtPtr
-    types <- peekValTypes vtPtr 1
-    case types of
-      (t:_) -> pure t
-      []    -> pure FuncRef
+    allocaCValType $ \vtPtr -> do
+      c_TableTypeGetRefType p vtPtr
+      types <- peekValTypes vtPtr 1
+      case types of
+        (t : _) -> pure t
+        [] -> pure FuncRef
 
 -- | Get the 'Limit' of a 'TableType'.
 getTableTypeLimit :: TableType -> IO Limit
@@ -102,20 +104,21 @@ getTableTypeLimit (TableType o) =
     if limPtr == nullPtr
       then pure (Limit 0 Nothing False)
       else alloca $ \hasMaxPtr ->
-           alloca $ \minPtr ->
-           alloca $ \maxPtr ->
-           alloca $ \sharedPtr ->
-           alloca $ \is64Ptr -> do
-             c_LimitGetInfo limPtr hasMaxPtr minPtr maxPtr sharedPtr is64Ptr
-             CBool hasMax <- peek hasMaxPtr
-             minVal       <- peek minPtr
-             maxVal       <- peek maxPtr
-             CBool shared <- peek sharedPtr
-             pure Limit
-               { limitMin    = fromIntegral minVal
-               , limitMax    = if hasMax /= 0 then Just (fromIntegral maxVal) else Nothing
-               , limitShared = shared /= 0
-               }
+        alloca $ \minPtr ->
+          alloca $ \maxPtr ->
+            alloca $ \sharedPtr ->
+              alloca $ \is64Ptr -> do
+                c_LimitGetInfo limPtr hasMaxPtr minPtr maxPtr sharedPtr is64Ptr
+                CBool hasMax <- peek hasMaxPtr
+                minVal <- peek minPtr
+                maxVal <- peek maxPtr
+                CBool shared <- peek sharedPtr
+                pure
+                  Limit
+                    { limitMin = fromIntegral minVal
+                    , limitMax = if hasMax /= 0 then Just (fromIntegral maxVal) else Nothing
+                    , limitShared = shared /= 0
+                    }
 
 -- ---------------------------------------------------------------------------
 -- TableInstance
@@ -154,22 +157,22 @@ getTableType (TableInstance o) =
 getTableData :: TableInstance -> Word32 -> IO (WasmResult WasmVal)
 getTableData (TableInstance o) offset =
   withOwned o $ \p ->
-  allocaCValue $ \valPtr ->
-  allocaCResult $ \resPtr -> do
-    c_TableInstanceGetData resPtr p valPtr offset
-    res <- checkResult resPtr
-    case res of
-      Left err -> pure (Left err)
-      Right () -> Right <$> decodeVal valPtr
+    allocaCValue $ \valPtr ->
+      allocaCResult $ \resPtr -> do
+        c_TableInstanceGetData resPtr p valPtr offset
+        res <- checkResult resPtr
+        case res of
+          Left err -> pure (Left err)
+          Right () -> Right <$> decodeVal valPtr
 
 -- | Set the reference value at an offset in the table.
 setTableData :: TableInstance -> Word32 -> WasmVal -> IO (WasmResult ())
 setTableData (TableInstance o) offset val =
   withOwned o $ \p ->
-  encodeVal val $ \valPtr ->
-  allocaCResult $ \resPtr -> do
-    c_TableInstanceSetData resPtr p valPtr offset
-    checkResult resPtr
+    encodeVal val $ \valPtr ->
+      allocaCResult $ \resPtr -> do
+        c_TableInstanceSetData resPtr p valPtr offset
+        checkResult resPtr
 
 -- | Get the current element count of a table.
 getTableSize :: TableInstance -> IO Word32
@@ -180,9 +183,9 @@ getTableSize (TableInstance o) =
 growTable :: TableInstance -> Word32 -> IO (WasmResult ())
 growTable (TableInstance o) count =
   withOwned o $ \p ->
-  allocaCResult $ \resPtr -> do
-    c_TableInstanceGrow resPtr p count
-    checkResult resPtr
+    allocaCResult $ \resPtr -> do
+      c_TableInstanceGrow resPtr p count
+      checkResult resPtr
 
 -- ---------------------------------------------------------------------------
 -- Unsafe / internal pointer helpers
@@ -213,7 +216,7 @@ disarmTable (TableInstance o) = disarmOwned o
 -- ---------------------------------------------------------------------------
 
 appFunPtr :: FunPtr (Ptr a -> IO ()) -> Ptr a -> IO ()
-appFunPtr fp p = mkDeleter fp p
+appFunPtr = mkDeleter
 
 foreign import ccall "dynamic"
   mkDeleter :: FunPtr (Ptr a -> IO ()) -> Ptr a -> IO ()

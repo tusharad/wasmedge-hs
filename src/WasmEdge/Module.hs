@@ -1,15 +1,16 @@
--- |
--- Module      : WasmEdge.Module
--- Description : WasmEdge module instances, host modules, and WASI
--- Copyright   : (c) 2026 Tushar Adhatrao
--- License     : MIT
--- Stability   : stable
---
--- Provides types and functions for managing WebAssembly module instances:
---
--- * 'ModuleInstance' — an instantiated WASM module or a custom host module
--- * Host module construction via 'buildHostModule' or 'addFunction'/'addMemory'/etc.
--- * Full WASI initialization and exit code querying via 'createWASIModule'
+{- |
+Module      : WasmEdge.Module
+Description : WasmEdge module instances, host modules, and WASI
+Copyright   : (c) 2026 Tushar Adhatrao
+License     : MIT
+Stability   : stable
+
+Provides types and functions for managing WebAssembly module instances:
+
+* 'ModuleInstance' — an instantiated WASM module or a custom host module
+* Host module construction via 'buildHostModule' or 'addFunction'/'addMemory'/etc.
+* Full WASI initialization and exit code querying via 'createWASIModule'
+-}
 module WasmEdge.Module
   ( -- * Module instance
     ModuleInstance (..)
@@ -56,30 +57,35 @@ module WasmEdge.Module
   , borrowModule
   ) where
 
-import Control.Exception     (bracket, throwIO)
-import Control.Monad         (forM)
-import Data.Text             (Text)
-import qualified Data.Text.Encoding as TE
-import qualified Data.ByteString    as BS
-import Foreign.C.String      (CString)
+import Control.Exception (bracket, throwIO)
+import Control.Monad (forM)
+import Data.ByteString qualified as BS
+import Data.Text (Text)
+import Data.Text.Encoding qualified as TE
+import Data.Word (Word32)
+import Foreign.C.String (CString)
 import Foreign.Marshal.Alloc (allocaBytes)
 import Foreign.Marshal.Array (withArray)
-import Foreign.Ptr           (Ptr, FunPtr, nullPtr, plusPtr)
-import Data.Word             (Word32)
+import Foreign.Ptr (FunPtr, Ptr, nullPtr, plusPtr)
 
 import WasmEdge.Error
-import WasmEdge.Function     ( FunctionInstance, borrowFunction, unsafeFunctionPtr, disarmFunction
-                             , ToHostFunc, createHostFunction
-                             )
-import WasmEdge.Table        (TableInstance, borrowTable, unsafeTablePtr, disarmTable)
-import WasmEdge.Memory       (MemoryInstance, borrowMemory, unsafeMemoryPtr, disarmMemory)
-import WasmEdge.Global       (GlobalInstance, borrowGlobal, unsafeGlobalPtr, disarmGlobal)
-import WasmEdge.Tag          (TagInstance, borrowTagInstance)
-import WasmEdge.Internal.Types     (ModuleInstanceTag)
-import WasmEdge.Internal.Ownership (OwnedCtx, mkOwned, withOwned, finalizeOwned)
-import WasmEdge.Internal.Storable  (CString_, stringSize, allocaCString)
-import WasmEdge.Internal.Utils     (withWasmString, peekWasmString)
+import WasmEdge.Function
+  ( FunctionInstance
+  , ToHostFunc
+  , borrowFunction
+  , createHostFunction
+  , disarmFunction
+  , unsafeFunctionPtr
+  )
+import WasmEdge.Global (GlobalInstance, borrowGlobal, disarmGlobal, unsafeGlobalPtr)
 import WasmEdge.Internal.FFI.Instance
+import WasmEdge.Internal.Ownership (OwnedCtx, finalizeOwned, mkOwned, withOwned)
+import WasmEdge.Internal.Storable (CString_, allocaCString, stringSize)
+import WasmEdge.Internal.Types (ModuleInstanceTag)
+import WasmEdge.Internal.Utils (peekWasmString, withWasmString)
+import WasmEdge.Memory (MemoryInstance, borrowMemory, disarmMemory, unsafeMemoryPtr)
+import WasmEdge.Table (TableInstance, borrowTable, disarmTable, unsafeTablePtr)
+import WasmEdge.Tag (TagInstance, borrowTagInstance)
 
 -- ---------------------------------------------------------------------------
 -- ModuleInstance
@@ -109,21 +115,22 @@ withHostModule name = bracket (createHostModule name) deleteModuleInstance
 -- WASI
 -- ---------------------------------------------------------------------------
 
--- | Create a WASI module instance initialized with arguments, environment variables,
--- and preopened directory mappings.
---
--- * @args@: command-line arguments (e.g., @[\"prog\", \"arg1\"]@)
--- * @envs@: environment variables in @"KEY=VALUE"@ format
--- * @preopens@: directory mappings in @"guest_dir:host_dir"@ format
+{- | Create a WASI module instance initialized with arguments, environment variables,
+and preopened directory mappings.
+
+* @args@: command-line arguments (e.g., @[\"prog\", \"arg1\"]@)
+* @envs@: environment variables in @"KEY=VALUE"@ format
+* @preopens@: directory mappings in @"guest_dir:host_dir"@ format
+-}
 createWASIModule :: [Text] -> [Text] -> [Text] -> IO ModuleInstance
 createWASIModule args envs preopens =
   withCStrings args $ \argc cArgs ->
-  withCStrings envs $ \envLen cEnvs ->
-  withCStrings preopens $ \preLen cPreopens -> do
-    p <- c_ModuleInstanceCreateWASI cArgs argc cEnvs envLen cPreopens preLen
-    if p == nullPtr
-      then throwIO $ WasmEdgeError ErrCategory_WASM 0 "WasmEdge_ModuleInstanceCreateWASI returned NULL"
-      else ModuleInstance <$> mkOwned (appFunPtr c_ModuleInstanceDelete) p
+    withCStrings envs $ \envLen cEnvs ->
+      withCStrings preopens $ \preLen cPreopens -> do
+        p <- c_ModuleInstanceCreateWASI cArgs argc cEnvs envLen cPreopens preLen
+        if p == nullPtr
+          then throwIO $ WasmEdgeError ErrCategory_WASM 0 "WasmEdge_ModuleInstanceCreateWASI returned NULL"
+          else ModuleInstance <$> mkOwned (appFunPtr c_ModuleInstanceDelete) p
 
 -- | Scoped WASI module instance.
 withWASIModule :: [Text] -> [Text] -> [Text] -> (ModuleInstance -> IO a) -> IO a
@@ -134,10 +141,10 @@ withWASIModule args envs preopens =
 initWASI :: ModuleInstance -> [Text] -> [Text] -> [Text] -> IO ()
 initWASI (ModuleInstance o) args envs preopens =
   withOwned o $ \p ->
-  withCStrings args $ \argc cArgs ->
-  withCStrings envs $ \envLen cEnvs ->
-  withCStrings preopens $ \preLen cPreopens ->
-    c_ModuleInstanceInitWASI p cArgs argc cEnvs envLen cPreopens preLen
+    withCStrings args $ \argc cArgs ->
+      withCStrings envs $ \envLen cEnvs ->
+        withCStrings preopens $ \preLen cPreopens ->
+          c_ModuleInstanceInitWASI p cArgs argc cEnvs envLen cPreopens preLen
 
 -- | Get the exit code from WASI execution.
 getWASIExitCode :: ModuleInstance -> IO Word32
@@ -152,59 +159,59 @@ getWASIExitCode (ModuleInstance o) =
 getModuleName :: ModuleInstance -> IO Text
 getModuleName (ModuleInstance o) =
   withOwned o $ \p ->
-  allocaCString $ \strPtr -> do
-    c_ModuleInstanceGetModuleName strPtr p
-    peekWasmString strPtr
+    allocaCString $ \strPtr -> do
+      c_ModuleInstanceGetModuleName strPtr p
+      peekWasmString strPtr
 
 -- | Find an exported function by name.
 findFunction :: ModuleInstance -> Text -> IO (Maybe FunctionInstance)
 findFunction (ModuleInstance o) name =
   withOwned o $ \p ->
-  withWasmString name $ \namePtr -> do
-    fp <- c_ModuleInstanceFindFunction p namePtr
-    if fp == nullPtr
-      then pure Nothing
-      else Just <$> borrowFunction fp
+    withWasmString name $ \namePtr -> do
+      fp <- c_ModuleInstanceFindFunction p namePtr
+      if fp == nullPtr
+        then pure Nothing
+        else Just <$> borrowFunction fp
 
 -- | Find an exported table by name.
 findTable :: ModuleInstance -> Text -> IO (Maybe TableInstance)
 findTable (ModuleInstance o) name =
   withOwned o $ \p ->
-  withWasmString name $ \namePtr -> do
-    tp <- c_ModuleInstanceFindTable p namePtr
-    if tp == nullPtr
-      then pure Nothing
-      else Just <$> borrowTable tp
+    withWasmString name $ \namePtr -> do
+      tp <- c_ModuleInstanceFindTable p namePtr
+      if tp == nullPtr
+        then pure Nothing
+        else Just <$> borrowTable tp
 
 -- | Find an exported memory by name.
 findMemory :: ModuleInstance -> Text -> IO (Maybe MemoryInstance)
 findMemory (ModuleInstance o) name =
   withOwned o $ \p ->
-  withWasmString name $ \namePtr -> do
-    mp <- c_ModuleInstanceFindMemory p namePtr
-    if mp == nullPtr
-      then pure Nothing
-      else Just <$> borrowMemory mp
+    withWasmString name $ \namePtr -> do
+      mp <- c_ModuleInstanceFindMemory p namePtr
+      if mp == nullPtr
+        then pure Nothing
+        else Just <$> borrowMemory mp
 
 -- | Find an exported global by name.
 findGlobal :: ModuleInstance -> Text -> IO (Maybe GlobalInstance)
 findGlobal (ModuleInstance o) name =
   withOwned o $ \p ->
-  withWasmString name $ \namePtr -> do
-    gp <- c_ModuleInstanceFindGlobal p namePtr
-    if gp == nullPtr
-      then pure Nothing
-      else Just <$> borrowGlobal gp
+    withWasmString name $ \namePtr -> do
+      gp <- c_ModuleInstanceFindGlobal p namePtr
+      if gp == nullPtr
+        then pure Nothing
+        else Just <$> borrowGlobal gp
 
 -- | Find an exported exception tag by name (0.18+).
 findTag :: ModuleInstance -> Text -> IO (Maybe TagInstance)
 findTag (ModuleInstance o) name =
   withOwned o $ \p ->
-  withWasmString name $ \namePtr -> do
-    tp <- c_ModuleInstanceFindTag p namePtr
-    if tp == nullPtr
-      then pure Nothing
-      else Just <$> borrowTagInstance tp
+    withWasmString name $ \namePtr -> do
+      tp <- c_ModuleInstanceFindTag p namePtr
+      if tp == nullPtr
+        then pure Nothing
+        else Just <$> borrowTagInstance tp
 
 -- | List all exported function names.
 listFunctions :: ModuleInstance -> IO [Text]
@@ -265,45 +272,49 @@ listTags (ModuleInstance o) =
 -- Add elements to host module
 -- ---------------------------------------------------------------------------
 
--- | Add a 'FunctionInstance' to a host module under the given export name.
--- Moves ownership of the function instance into the module.
+{- | Add a 'FunctionInstance' to a host module under the given export name.
+Moves ownership of the function instance into the module.
+-}
 addFunction :: ModuleInstance -> Text -> FunctionInstance -> IO ()
 addFunction (ModuleInstance o) name fn =
   withOwned o $ \p ->
-  withWasmString name $ \namePtr -> do
-    fnPtr <- unsafeFunctionPtr fn
-    c_ModuleInstanceAddFunction p namePtr fnPtr
-    disarmFunction fn
+    withWasmString name $ \namePtr -> do
+      fnPtr <- unsafeFunctionPtr fn
+      c_ModuleInstanceAddFunction p namePtr fnPtr
+      disarmFunction fn
 
--- | Add a 'TableInstance' to a host module under the given export name.
--- Moves ownership of the table instance into the module.
+{- | Add a 'TableInstance' to a host module under the given export name.
+Moves ownership of the table instance into the module.
+-}
 addTable :: ModuleInstance -> Text -> TableInstance -> IO ()
 addTable (ModuleInstance o) name tbl =
   withOwned o $ \p ->
-  withWasmString name $ \namePtr -> do
-    tblPtr <- unsafeTablePtr tbl
-    c_ModuleInstanceAddTable p namePtr tblPtr
-    disarmTable tbl
+    withWasmString name $ \namePtr -> do
+      tblPtr <- unsafeTablePtr tbl
+      c_ModuleInstanceAddTable p namePtr tblPtr
+      disarmTable tbl
 
--- | Add a 'MemoryInstance' to a host module under the given export name.
--- Moves ownership of the memory instance into the module.
+{- | Add a 'MemoryInstance' to a host module under the given export name.
+Moves ownership of the memory instance into the module.
+-}
 addMemory :: ModuleInstance -> Text -> MemoryInstance -> IO ()
 addMemory (ModuleInstance o) name mem =
   withOwned o $ \p ->
-  withWasmString name $ \namePtr -> do
-    memPtr <- unsafeMemoryPtr mem
-    c_ModuleInstanceAddMemory p namePtr memPtr
-    disarmMemory mem
+    withWasmString name $ \namePtr -> do
+      memPtr <- unsafeMemoryPtr mem
+      c_ModuleInstanceAddMemory p namePtr memPtr
+      disarmMemory mem
 
--- | Add a 'GlobalInstance' to a host module under the given export name.
--- Moves ownership of the global instance into the module.
+{- | Add a 'GlobalInstance' to a host module under the given export name.
+Moves ownership of the global instance into the module.
+-}
 addGlobal :: ModuleInstance -> Text -> GlobalInstance -> IO ()
 addGlobal (ModuleInstance o) name g =
   withOwned o $ \p ->
-  withWasmString name $ \namePtr -> do
-    gPtr <- unsafeGlobalPtr g
-    c_ModuleInstanceAddGlobal p namePtr gPtr
-    disarmGlobal g
+    withWasmString name $ \namePtr -> do
+      gPtr <- unsafeGlobalPtr g
+      c_ModuleInstanceAddGlobal p namePtr gPtr
+      disarmGlobal g
 
 -- ---------------------------------------------------------------------------
 -- Builder pattern
@@ -323,8 +334,9 @@ buildHostModule name act = do
 builderAddFunction :: ModuleBuilder -> Text -> FunctionInstance -> IO ()
 builderAddFunction (ModuleBuilder m) = addFunction m
 
--- | Add a typed Haskell host function to a host module builder, automatically
--- inferring its WebAssembly signature and handling argument/result conversions.
+{- | Add a typed Haskell host function to a host module builder, automatically
+inferring its WebAssembly signature and handling argument/result conversions.
+-}
 builderAddHostFunc :: (ToHostFunc f) => ModuleBuilder -> Text -> f -> IO ()
 builderAddHostFunc (ModuleBuilder m) name fn = do
   fnInst <- createHostFunction fn
@@ -364,7 +376,7 @@ withCStrings texts action = go texts []
     go [] acc =
       withArray (reverse acc) $ \ptr ->
         action (fromIntegral (length texts)) ptr
-    go (t:ts) acc =
+    go (t : ts) acc =
       BS.useAsCString (TE.encodeUtf8 t) $ \cstr ->
         go ts (cstr : acc)
 
@@ -375,7 +387,7 @@ peekStringList arr len =
     peekWasmString ptr
 
 appFunPtr :: FunPtr (Ptr a -> IO ()) -> Ptr a -> IO ()
-appFunPtr fp p = mkDeleter fp p
+appFunPtr = mkDeleter
 
 foreign import ccall "dynamic"
   mkDeleter :: FunPtr (Ptr a -> IO ()) -> Ptr a -> IO ()

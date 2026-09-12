@@ -1,20 +1,22 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE ScopedTypeVariables #-}
--- |
--- Module      : WasmEdge.Function
--- Description : WasmEdge function types and host function instances
--- Copyright   : (c) 2026 Tushar Adhatrao
--- License     : MIT
--- Stability   : stable
---
--- Provides types and functions for WebAssembly function types and host function instances:
---
--- * 'FunctionType' — parameter and return type signatures
--- * 'FunctionInstance' — a callable function in WebAssembly or the host
--- * 'HostFunc' — raw low-level callback interface (@CallingFrame -> [WasmVal] -> IO (WasmResult [WasmVal])@)
--- * 'ToHostFunc' — high-level typeclass allowing normal Haskell functions (e.g. @Int32 -> Int32 -> IO Int32@
---   or @CallingFrame -> Word32 -> IO ()@) to be registered directly as host functions without manual value unpacking.
--- * 'CallingFrame' — execution frame passed to host functions providing access to caller memory and module instances.
+
+{- |
+Module      : WasmEdge.Function
+Description : WasmEdge function types and host function instances
+Copyright   : (c) 2026 Tushar Adhatrao
+License     : MIT
+Stability   : stable
+
+Provides types and functions for WebAssembly function types and host function instances:
+
+* 'FunctionType' — parameter and return type signatures
+* 'FunctionInstance' — a callable function in WebAssembly or the host
+* 'HostFunc' — raw low-level callback interface (@CallingFrame -> [WasmVal] -> IO (WasmResult [WasmVal])@)
+* 'ToHostFunc' — high-level typeclass allowing normal Haskell functions (e.g. @Int32 -> Int32 -> IO Int32@
+  or @CallingFrame -> Word32 -> IO ()@) to be registered directly as host functions without manual value unpacking.
+* 'CallingFrame' — execution frame passed to host functions providing access to caller memory and module instances.
+-}
 module WasmEdge.Function
   ( -- * High-level host functions
     ToHostFunc (..)
@@ -55,27 +57,36 @@ module WasmEdge.Function
   , disarmFunction
   ) where
 
-import Control.Exception     (bracket, throwIO)
-import Control.Monad         (forM_)
-import Data.Int              (Int32, Int64)
-import Data.Proxy            (Proxy (..))
-import Data.Word             (Word32, Word64)
+import Control.Exception (bracket, throwIO)
+import Control.Monad (forM_)
+import Data.Int (Int32, Int64)
+import Data.Proxy (Proxy (..))
+import Data.Word (Word32, Word64)
 import Foreign.Marshal.Utils (copyBytes)
-import Foreign.Ptr           (Ptr, FunPtr, nullPtr, castPtr, plusPtr, freeHaskellFunPtr)
+import Foreign.Ptr (FunPtr, Ptr, castPtr, freeHaskellFunPtr, nullPtr, plusPtr)
 
-import WasmEdge.Types
 import WasmEdge.Error
-import WasmEdge.Value        (encodeVal, peekValArray, withValTypeArray, peekValTypes, valueSize)
-import WasmEdge.Internal.Types     ( FunctionTypeTag, FunctionInstanceTag
-                                  , CallingFrameTag, ExecutorTag, ModuleInstanceTag
-                                  , MemoryInstanceTag
-                                  )
-import WasmEdge.Internal.Ownership ( OwnedCtx, BorrowedCtx (..), mkOwned, withOwned
-                                  , finalizeOwned, disarmOwned
-                                  )
-import WasmEdge.Internal.Storable  (withCValTypeArray)
+import WasmEdge.Internal.FFI.Basic (c_ResultGen, c_Result_Success)
 import WasmEdge.Internal.FFI.Instance
-import WasmEdge.Internal.FFI.Basic (c_Result_Success, c_ResultGen)
+import WasmEdge.Internal.Ownership
+  ( BorrowedCtx (..)
+  , OwnedCtx
+  , disarmOwned
+  , finalizeOwned
+  , mkOwned
+  , withOwned
+  )
+import WasmEdge.Internal.Storable (withCValTypeArray)
+import WasmEdge.Internal.Types
+  ( CallingFrameTag
+  , ExecutorTag
+  , FunctionInstanceTag
+  , FunctionTypeTag
+  , MemoryInstanceTag
+  , ModuleInstanceTag
+  )
+import WasmEdge.Types
+import WasmEdge.Value (encodeVal, peekValArray, peekValTypes, valueSize, withValTypeArray)
 
 -- ---------------------------------------------------------------------------
 -- FunctionType
@@ -88,11 +99,11 @@ newtype FunctionType = FunctionType (OwnedCtx FunctionTypeTag)
 createFunctionType :: [ValType] -> [ValType] -> IO FunctionType
 createFunctionType params rets =
   withValTypeArray params $ \pArr pLen ->
-  withValTypeArray rets   $ \rArr rLen -> do
-    p <- c_FunctionTypeCreate pArr pLen rArr rLen
-    if p == nullPtr
-      then throwIO $ WasmEdgeError ErrCategory_WASM 0 "WasmEdge_FunctionTypeCreate returned NULL"
-      else FunctionType <$> mkOwned (appFunPtr c_FunctionTypeDelete) p
+    withValTypeArray rets $ \rArr rLen -> do
+      p <- c_FunctionTypeCreate pArr pLen rArr rLen
+      if p == nullPtr
+        then throwIO $ WasmEdgeError ErrCategory_WASM 0 "WasmEdge_FunctionTypeCreate returned NULL"
+        else FunctionType <$> mkOwned (appFunPtr c_FunctionTypeDelete) p
 
 -- | Delete a 'FunctionType'.
 deleteFunctionType :: FunctionType -> IO ()
@@ -143,8 +154,8 @@ callingFrameGetModuleInstance (CallingFrame (BorrowedCtx p)) =
 
 -- | Get the memory instance by index (typically 0) from a 'CallingFrame'.
 callingFrameGetMemoryInstance :: CallingFrame -> Word32 -> IO (Ptr MemoryInstanceTag)
-callingFrameGetMemoryInstance (CallingFrame (BorrowedCtx p)) idx =
-  c_CallingFrameGetMemoryInstance p idx
+callingFrameGetMemoryInstance (CallingFrame (BorrowedCtx p)) =
+  c_CallingFrameGetMemoryInstance p
 
 -- ---------------------------------------------------------------------------
 -- HostFunc & FunctionInstance
@@ -168,16 +179,16 @@ createFunction (FunctionType ftOwned) hostFn =
       case result of
         Right retVals -> do
           -- Encode return values into returnsPtr
-          forM_ (zip [0..] retVals) $ \(i, v) ->
+          forM_ (zip [0 ..] retVals) $ \(i, v) ->
             encodeVal v $ \encodedPtr -> do
               let dst = returnsPtr `plusPtr` (i * valueSize)
               copyBytes dst (castPtr encodedPtr) valueSize
           c_Result_Success resOutPtr
         Left err -> do
           let catCode = case weErrCategory err of
-                ErrCategory_WASM        -> 0 :: Word32
+                ErrCategory_WASM -> 0 :: Word32
                 ErrCategory_UserDefined -> 1 :: Word32
-                ErrCategory_Unknown c   -> c
+                ErrCategory_Unknown c -> c
           c_ResultGen resOutPtr catCode (weErrCode err)
 
     p <- c_FunctionInstanceCreateBinding ftPtr fptr nullPtr 0
@@ -185,10 +196,14 @@ createFunction (FunctionType ftOwned) hostFn =
       then do
         freeHaskellFunPtr fptr
         throwIO $ WasmEdgeError ErrCategory_WASM 0 "WasmEdge_FunctionInstanceCreateBinding returned NULL"
-      else FunctionInstance <$> mkOwned (\ptr -> do
-             c_FunctionInstanceDelete `appFunPtr` ptr
-             freeHaskellFunPtr fptr
-           ) p
+      else
+        FunctionInstance
+          <$> mkOwned
+            ( \ptr -> do
+                c_FunctionInstanceDelete `appFunPtr` ptr
+                freeHaskellFunPtr fptr
+            )
+            p
 
 -- | Delete a 'FunctionInstance'.
 deleteFunction :: FunctionInstance -> IO ()
@@ -204,7 +219,8 @@ getFunctionType (FunctionInstance o) =
   withOwned o $ \p -> do
     tp <- c_FunctionInstanceGetFunctionType p
     if tp == nullPtr
-      then throwIO $ WasmEdgeError ErrCategory_WASM 0 "WasmEdge_FunctionInstanceGetFunctionType returned NULL"
+      then
+        throwIO $ WasmEdgeError ErrCategory_WASM 0 "WasmEdge_FunctionInstanceGetFunctionType returned NULL"
       else borrowFunctionType tp
 
 -- ---------------------------------------------------------------------------
@@ -220,37 +236,37 @@ class WasmValType a where
 instance WasmValType Int32 where
   toWasmVal = WasmI32
   fromWasmVal (WasmI32 v) = Just v
-  fromWasmVal _           = Nothing
+  fromWasmVal _ = Nothing
   wasmValType _ = I32
 
 instance WasmValType Word32 where
   toWasmVal = WasmI32 . fromIntegral
   fromWasmVal (WasmI32 v) = Just (fromIntegral v)
-  fromWasmVal _           = Nothing
+  fromWasmVal _ = Nothing
   wasmValType _ = I32
 
 instance WasmValType Int64 where
   toWasmVal = WasmI64
   fromWasmVal (WasmI64 v) = Just v
-  fromWasmVal _           = Nothing
+  fromWasmVal _ = Nothing
   wasmValType _ = I64
 
 instance WasmValType Word64 where
   toWasmVal = WasmI64 . fromIntegral
   fromWasmVal (WasmI64 v) = Just (fromIntegral v)
-  fromWasmVal _           = Nothing
+  fromWasmVal _ = Nothing
   wasmValType _ = I64
 
 instance WasmValType Float where
   toWasmVal = WasmF32
   fromWasmVal (WasmF32 v) = Just v
-  fromWasmVal _           = Nothing
+  fromWasmVal _ = Nothing
   wasmValType _ = F32
 
 instance WasmValType Double where
   toWasmVal = WasmF64
   fromWasmVal (WasmF64 v) = Just v
-  fromWasmVal _           = Nothing
+  fromWasmVal _ = Nothing
   wasmValType _ = F64
 
 instance WasmValType WasmVal where
@@ -299,9 +315,10 @@ instance (WasmValType a, WasmValType b, WasmValType c) => WasmReturn (a, b, c) w
   toWasmReturn (a, b, c) = [toWasmVal a, toWasmVal b, toWasmVal c]
   wasmReturnTypes _ = [wasmValType (Proxy :: Proxy a), wasmValType (Proxy :: Proxy b), wasmValType (Proxy :: Proxy c)]
 
--- | Typeclass for functions that can be converted into a WasmEdge host function.
---
--- Automatically converts Haskell typed arguments and results, with optional 'CallingFrame'.
+{- | Typeclass for functions that can be converted into a WasmEdge host function.
+
+Automatically converts Haskell typed arguments and results, with optional 'CallingFrame'.
+-}
 class ToHostFunc f where
   toHostFunc :: f -> HostFunc
   hostFuncSignature :: Proxy f -> ([ValType], [ValType])
@@ -320,14 +337,14 @@ instance {-# OVERLAPPING #-} (WasmReturn r) => ToHostFunc (CallingFrame -> IO r)
 -- 1 arg
 instance {-# OVERLAPPABLE #-} (WasmValType a, WasmReturn r) => ToHostFunc (a -> IO r) where
   toHostFunc act _frame [va] = case fromWasmVal va of
-    Just a  -> Right . toWasmReturn <$> act a
+    Just a -> Right . toWasmReturn <$> act a
     Nothing -> pure (Left (WasmEdgeError ErrCategory_UserDefined 2 "Type mismatch for argument 1"))
   toHostFunc _ _ _ = pure (Left (WasmEdgeError ErrCategory_UserDefined 1 "Invalid argument count"))
   hostFuncSignature _ = ([wasmValType (Proxy :: Proxy a)], wasmReturnTypes (Proxy :: Proxy r))
 
 instance {-# OVERLAPPING #-} (WasmValType a, WasmReturn r) => ToHostFunc (CallingFrame -> a -> IO r) where
   toHostFunc act frame [va] = case fromWasmVal va of
-    Just a  -> Right . toWasmReturn <$> act frame a
+    Just a -> Right . toWasmReturn <$> act frame a
     Nothing -> pure (Left (WasmEdgeError ErrCategory_UserDefined 2 "Type mismatch for argument 1"))
   toHostFunc _ _ _ = pure (Left (WasmEdgeError ErrCategory_UserDefined 1 "Invalid argument count"))
   hostFuncSignature _ = ([wasmValType (Proxy :: Proxy a)], wasmReturnTypes (Proxy :: Proxy r))
@@ -336,7 +353,8 @@ instance {-# OVERLAPPING #-} (WasmValType a, WasmReturn r) => ToHostFunc (Callin
 instance {-# OVERLAPPABLE #-} (WasmValType a, WasmValType b, WasmReturn r) => ToHostFunc (a -> b -> IO r) where
   toHostFunc act _frame [va, vb] = case (fromWasmVal va, fromWasmVal vb) of
     (Just a, Just b) -> Right . toWasmReturn <$> act a b
-    _                -> pure (Left (WasmEdgeError ErrCategory_UserDefined 2 "Type mismatch in arguments"))
+    _ ->
+      pure (Left (WasmEdgeError ErrCategory_UserDefined 2 "Type mismatch in arguments"))
   toHostFunc _ _ _ = pure (Left (WasmEdgeError ErrCategory_UserDefined 1 "Invalid argument count"))
   hostFuncSignature _ =
     ( [wasmValType (Proxy :: Proxy a), wasmValType (Proxy :: Proxy b)]
@@ -346,7 +364,8 @@ instance {-# OVERLAPPABLE #-} (WasmValType a, WasmValType b, WasmReturn r) => To
 instance {-# OVERLAPPING #-} (WasmValType a, WasmValType b, WasmReturn r) => ToHostFunc (CallingFrame -> a -> b -> IO r) where
   toHostFunc act frame [va, vb] = case (fromWasmVal va, fromWasmVal vb) of
     (Just a, Just b) -> Right . toWasmReturn <$> act frame a b
-    _                -> pure (Left (WasmEdgeError ErrCategory_UserDefined 2 "Type mismatch in arguments"))
+    _ ->
+      pure (Left (WasmEdgeError ErrCategory_UserDefined 2 "Type mismatch in arguments"))
   toHostFunc _ _ _ = pure (Left (WasmEdgeError ErrCategory_UserDefined 1 "Invalid argument count"))
   hostFuncSignature _ =
     ( [wasmValType (Proxy :: Proxy a), wasmValType (Proxy :: Proxy b)]
@@ -357,17 +376,23 @@ instance {-# OVERLAPPING #-} (WasmValType a, WasmValType b, WasmReturn r) => ToH
 instance {-# OVERLAPPABLE #-} (WasmValType a, WasmValType b, WasmValType c, WasmReturn r) => ToHostFunc (a -> b -> c -> IO r) where
   toHostFunc act _frame [va, vb, vc] = case (fromWasmVal va, fromWasmVal vb, fromWasmVal vc) of
     (Just a, Just b, Just c) -> Right . toWasmReturn <$> act a b c
-    _                        -> pure (Left (WasmEdgeError ErrCategory_UserDefined 2 "Type mismatch in arguments"))
+    _ ->
+      pure (Left (WasmEdgeError ErrCategory_UserDefined 2 "Type mismatch in arguments"))
   toHostFunc _ _ _ = pure (Left (WasmEdgeError ErrCategory_UserDefined 1 "Invalid argument count"))
   hostFuncSignature _ =
     ( [wasmValType (Proxy :: Proxy a), wasmValType (Proxy :: Proxy b), wasmValType (Proxy :: Proxy c)]
     , wasmReturnTypes (Proxy :: Proxy r)
     )
 
-instance {-# OVERLAPPING #-} (WasmValType a, WasmValType b, WasmValType c, WasmReturn r) => ToHostFunc (CallingFrame -> a -> b -> c -> IO r) where
+instance
+  {-# OVERLAPPING #-}
+  (WasmValType a, WasmValType b, WasmValType c, WasmReturn r) =>
+  ToHostFunc (CallingFrame -> a -> b -> c -> IO r)
+  where
   toHostFunc act frame [va, vb, vc] = case (fromWasmVal va, fromWasmVal vb, fromWasmVal vc) of
     (Just a, Just b, Just c) -> Right . toWasmReturn <$> act frame a b c
-    _                        -> pure (Left (WasmEdgeError ErrCategory_UserDefined 2 "Type mismatch in arguments"))
+    _ ->
+      pure (Left (WasmEdgeError ErrCategory_UserDefined 2 "Type mismatch in arguments"))
   toHostFunc _ _ _ = pure (Left (WasmEdgeError ErrCategory_UserDefined 1 "Invalid argument count"))
   hostFuncSignature _ =
     ( [wasmValType (Proxy :: Proxy a), wasmValType (Proxy :: Proxy b), wasmValType (Proxy :: Proxy c)]
@@ -375,23 +400,43 @@ instance {-# OVERLAPPING #-} (WasmValType a, WasmValType b, WasmValType c, WasmR
     )
 
 -- 4 args
-instance {-# OVERLAPPABLE #-} (WasmValType a, WasmValType b, WasmValType c, WasmValType d, WasmReturn r) => ToHostFunc (a -> b -> c -> d -> IO r) where
+instance
+  {-# OVERLAPPABLE #-}
+  (WasmValType a, WasmValType b, WasmValType c, WasmValType d, WasmReturn r) =>
+  ToHostFunc (a -> b -> c -> d -> IO r)
+  where
   toHostFunc act _frame [va, vb, vc, vd] = case (fromWasmVal va, fromWasmVal vb, fromWasmVal vc, fromWasmVal vd) of
     (Just a, Just b, Just c, Just d) -> Right . toWasmReturn <$> act a b c d
-    _                                -> pure (Left (WasmEdgeError ErrCategory_UserDefined 2 "Type mismatch in arguments"))
+    _ ->
+      pure (Left (WasmEdgeError ErrCategory_UserDefined 2 "Type mismatch in arguments"))
   toHostFunc _ _ _ = pure (Left (WasmEdgeError ErrCategory_UserDefined 1 "Invalid argument count"))
   hostFuncSignature _ =
-    ( [wasmValType (Proxy :: Proxy a), wasmValType (Proxy :: Proxy b), wasmValType (Proxy :: Proxy c), wasmValType (Proxy :: Proxy d)]
+    (
+      [ wasmValType (Proxy :: Proxy a)
+      , wasmValType (Proxy :: Proxy b)
+      , wasmValType (Proxy :: Proxy c)
+      , wasmValType (Proxy :: Proxy d)
+      ]
     , wasmReturnTypes (Proxy :: Proxy r)
     )
 
-instance {-# OVERLAPPING #-} (WasmValType a, WasmValType b, WasmValType c, WasmValType d, WasmReturn r) => ToHostFunc (CallingFrame -> a -> b -> c -> d -> IO r) where
+instance
+  {-# OVERLAPPING #-}
+  (WasmValType a, WasmValType b, WasmValType c, WasmValType d, WasmReturn r) =>
+  ToHostFunc (CallingFrame -> a -> b -> c -> d -> IO r)
+  where
   toHostFunc act frame [va, vb, vc, vd] = case (fromWasmVal va, fromWasmVal vb, fromWasmVal vc, fromWasmVal vd) of
     (Just a, Just b, Just c, Just d) -> Right . toWasmReturn <$> act frame a b c d
-    _                                -> pure (Left (WasmEdgeError ErrCategory_UserDefined 2 "Type mismatch in arguments"))
+    _ ->
+      pure (Left (WasmEdgeError ErrCategory_UserDefined 2 "Type mismatch in arguments"))
   toHostFunc _ _ _ = pure (Left (WasmEdgeError ErrCategory_UserDefined 1 "Invalid argument count"))
   hostFuncSignature _ =
-    ( [wasmValType (Proxy :: Proxy a), wasmValType (Proxy :: Proxy b), wasmValType (Proxy :: Proxy c), wasmValType (Proxy :: Proxy d)]
+    (
+      [ wasmValType (Proxy :: Proxy a)
+      , wasmValType (Proxy :: Proxy b)
+      , wasmValType (Proxy :: Proxy c)
+      , wasmValType (Proxy :: Proxy d)
+      ]
     , wasmReturnTypes (Proxy :: Proxy r)
     )
 
@@ -435,7 +480,7 @@ disarmFunction (FunctionInstance o) = disarmOwned o
 -- ---------------------------------------------------------------------------
 
 appFunPtr :: FunPtr (Ptr a -> IO ()) -> Ptr a -> IO ()
-appFunPtr fp p = mkDeleter fp p
+appFunPtr = mkDeleter
 
 foreign import ccall "dynamic"
   mkDeleter :: FunPtr (Ptr a -> IO ()) -> Ptr a -> IO ()

@@ -1,20 +1,27 @@
 -- | VM integration tests
 module Test.Unit.VMSpec (spec) where
 
-import Test.Hspec
 import Data.ByteString (ByteString)
-import qualified Data.ByteString as BS
+import Data.ByteString qualified as BS
+import Test.Hspec
 
-import WasmEdge.VM
 import WasmEdge.Types
+import WasmEdge.VM
 
 -- Minimal valid WASM module (empty):
 -- (module)
 emptyWasm :: ByteString
-emptyWasm = BS.pack
-  [ 0x00, 0x61, 0x73, 0x6D  -- magic: \0asm
-  , 0x01, 0x00, 0x00, 0x00  -- version: 1
-  ]
+emptyWasm =
+  BS.pack
+    [ 0x00
+    , 0x61
+    , 0x73
+    , 0x6D -- magic: \0asm
+    , 0x01
+    , 0x00
+    , 0x00
+    , 0x00 -- version: 1
+    ]
 
 -- Minimal add function WASM:
 -- (module
@@ -23,27 +30,60 @@ emptyWasm = BS.pack
 --     local.get 1
 --     i32.add))
 addWasm :: ByteString
-addWasm = BS.pack
-  [ 0x00, 0x61, 0x73, 0x6D, 0x01, 0x00, 0x00, 0x00
-  -- type section: (i32 i32) -> (i32)
-  , 0x01, 0x07, 0x01, 0x60, 0x02, 0x7F, 0x7F, 0x01, 0x7F
-  -- function section: func 0
-  , 0x03, 0x02, 0x01, 0x00
-  -- export section: "add" -> func 0
-  , 0x07, 0x07, 0x01, 0x03, 0x61, 0x64, 0x64, 0x00, 0x00
-  -- code section
-  , 0x0A, 0x09, 0x01, 0x07, 0x00
-    , 0x20, 0x00  -- local.get 0
-    , 0x20, 0x01  -- local.get 1
-    , 0x6A        -- i32.add
-    , 0x0B        -- end
-  ]
+addWasm =
+  BS.pack
+    [ 0x00
+    , 0x61
+    , 0x73
+    , 0x6D
+    , 0x01
+    , 0x00
+    , 0x00
+    , 0x00
+    , -- type section: (i32 i32) -> (i32)
+      0x01
+    , 0x07
+    , 0x01
+    , 0x60
+    , 0x02
+    , 0x7F
+    , 0x7F
+    , 0x01
+    , 0x7F
+    , -- function section: func 0
+      0x03
+    , 0x02
+    , 0x01
+    , 0x00
+    , -- export section: "add" -> func 0
+      0x07
+    , 0x07
+    , 0x01
+    , 0x03
+    , 0x61
+    , 0x64
+    , 0x64
+    , 0x00
+    , 0x00
+    , -- code section
+      0x0A
+    , 0x09
+    , 0x01
+    , 0x07
+    , 0x00
+    , 0x20
+    , 0x00 -- local.get 0
+    , 0x20
+    , 0x01 -- local.get 1
+    , 0x6A -- i32.add
+    , 0x0B -- end
+    ]
 
 spec :: Spec
 spec = describe "WasmEdge VM" $ do
-
   it "creates and deletes VM without crashing" $
-    withVM Nothing Nothing $ \_ -> pure ()
+    withVM Nothing Nothing $
+      \_ -> pure ()
 
   describe "runWasmBytes" $ do
     it "runs empty module without crashing" $
@@ -91,4 +131,4 @@ spec = describe "WasmEdge VM" $ do
 
 isLeft :: Either a b -> Bool
 isLeft (Left _) = True
-isLeft _        = False
+isLeft _ = False

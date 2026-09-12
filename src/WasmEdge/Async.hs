@@ -1,12 +1,13 @@
--- |
--- Module      : WasmEdge.Async
--- Description : Asynchronous WasmEdge execution results
--- Copyright   : (c) wasmedge-hs contributors, 2026
--- License     : Apache-2.0
--- Stability   : stable
---
--- When functions are invoked via @async*@ variants in 'WasmEdge.VM' or
--- 'WasmEdge.Executor', they return an 'Async' handle that can be waited on.
+{- |
+Module      : WasmEdge.Async
+Description : Asynchronous WasmEdge execution results
+Copyright   : (c) wasmedge-hs contributors, 2026
+License     : Apache-2.0
+Stability   : stable
+
+When functions are invoked via @async*@ variants in 'WasmEdge.VM' or
+'WasmEdge.Executor', they return an 'Async' handle that can be waited on.
+-}
 module WasmEdge.Async
   ( Async (..)
   , wait
@@ -19,19 +20,19 @@ module WasmEdge.Async
   , borrowAsync
   ) where
 
-import Control.Exception        (throwIO)
-import Data.Word                (Word32, Word64)
-import Foreign.C                (CBool (..))
+import Control.Exception (throwIO)
+import Data.Word (Word32, Word64)
+import Foreign.C (CBool (..))
 import Foreign.Ptr
 
 import WasmEdge.Error
-import WasmEdge.Types
-import WasmEdge.Value           (peekValArray)
-import WasmEdge.Internal.Types
+import WasmEdge.Internal.FFI.Execution
 import WasmEdge.Internal.Ownership
 import WasmEdge.Internal.Storable
-import WasmEdge.Internal.FFI.Execution
-import WasmEdge.Internal.Utils  (checkResult)
+import WasmEdge.Internal.Types
+import WasmEdge.Internal.Utils (checkResult)
+import WasmEdge.Types
+import WasmEdge.Value (peekValArray)
 
 -- | An asynchronous execution result handle.
 newtype Async = Async (OwnedCtx AsyncTag)
@@ -40,7 +41,7 @@ newtype Async = Async (OwnedCtx AsyncTag)
 mkAsync :: Ptr AsyncTag -> IO Async
 mkAsync p
   | p == nullPtr = throwIO $ WasmEdgeError ErrCategory_WASM 0 "Async returned NULL"
-  | otherwise    = Async <$> mkOwned (appFunPtr c_AsyncDelete) p
+  | otherwise = Async <$> mkOwned (appFunPtr c_AsyncDelete) p
 
 -- | Create a borrowed 'Async' handle from a raw pointer (does not finalize).
 borrowAsync :: Ptr AsyncTag -> IO Async
@@ -77,5 +78,6 @@ getReturns (Async o) = withOwned o $ \aPtr -> do
         Right () -> Right <$> peekValArray (castPtr retsPtr) n
 
 appFunPtr :: FunPtr (Ptr a -> IO ()) -> Ptr a -> IO ()
-appFunPtr fp p = mkDeleter fp p
+appFunPtr = mkDeleter
+
 foreign import ccall "dynamic" mkDeleter :: FunPtr (Ptr a -> IO ()) -> Ptr a -> IO ()

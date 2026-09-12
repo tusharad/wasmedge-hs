@@ -1,14 +1,15 @@
--- |
--- Module      : WasmEdge.Global
--- Description : WasmEdge global variable contexts
--- Copyright   : (c) 2026 Tushar Adhatrao
--- License     : MIT
--- Stability   : stable
---
--- Provides contexts for WebAssembly global variables:
---
--- * 'GlobalType' — describes the value type and mutability of a global
--- * 'GlobalInstance' — a runtime global variable instance
+{- |
+Module      : WasmEdge.Global
+Description : WasmEdge global variable contexts
+Copyright   : (c) 2026 Tushar Adhatrao
+License     : MIT
+Stability   : stable
+
+Provides contexts for WebAssembly global variables:
+
+* 'GlobalType' — describes the value type and mutability of a global
+* 'GlobalInstance' — a runtime global variable instance
+-}
 module WasmEdge.Global
   ( -- * Global type
     GlobalType
@@ -36,17 +37,17 @@ module WasmEdge.Global
   ) where
 
 import Control.Exception (bracket, throwIO)
-import Foreign.Ptr
 import Data.Word (Word32)
+import Foreign.Ptr
 
-import WasmEdge.Types
 import WasmEdge.Error
-import WasmEdge.Value (encodeVal, decodeVal, encodeValType, peekValTypes)
-import WasmEdge.Internal.Types (GlobalTypeTag, GlobalInstanceTag)
-import WasmEdge.Internal.Ownership (OwnedCtx, mkOwned, withOwned, finalizeOwned, disarmOwned)
-import WasmEdge.Internal.Storable (allocaCValType, allocaCValue, allocaCResult)
-import WasmEdge.Internal.Utils (checkResult)
 import WasmEdge.Internal.FFI.Instance
+import WasmEdge.Internal.Ownership (OwnedCtx, disarmOwned, finalizeOwned, mkOwned, withOwned)
+import WasmEdge.Internal.Storable (allocaCResult, allocaCValType, allocaCValue)
+import WasmEdge.Internal.Types (GlobalInstanceTag, GlobalTypeTag)
+import WasmEdge.Internal.Utils (checkResult)
+import WasmEdge.Types
+import WasmEdge.Value (decodeVal, encodeVal, encodeValType, peekValTypes)
 
 -- ---------------------------------------------------------------------------
 -- GlobalType
@@ -61,7 +62,7 @@ createGlobalType vt mut =
   encodeValType vt $ \vtPtr -> do
     let mutCode = case mut of
           Const -> 0 :: Word32
-          Var   -> 1 :: Word32
+          Var -> 1 :: Word32
     p <- c_GlobalTypeCreate vtPtr mutCode
     if p == nullPtr
       then throwIO $ WasmEdgeError ErrCategory_WASM 0 "WasmEdge_GlobalTypeCreate returned NULL"
@@ -79,12 +80,12 @@ withGlobalType vt mut = bracket (createGlobalType vt mut) deleteGlobalType
 getGlobalTypeValType :: GlobalType -> IO ValType
 getGlobalTypeValType (GlobalType o) =
   withOwned o $ \p ->
-  allocaCValType $ \vtPtr -> do
-    c_GlobalTypeGetValType p vtPtr
-    types <- peekValTypes vtPtr 1
-    case types of
-      (t:_) -> pure t
-      []    -> pure I32
+    allocaCValType $ \vtPtr -> do
+      c_GlobalTypeGetValType p vtPtr
+      types <- peekValTypes vtPtr 1
+      case types of
+        (t : _) -> pure t
+        [] -> pure I32
 
 -- | Retrieve the 'Mutability' of a 'GlobalType'.
 getGlobalTypeMutability :: GlobalType -> IO Mutability
@@ -104,11 +105,11 @@ newtype GlobalInstance = GlobalInstance (OwnedCtx GlobalInstanceTag)
 createGlobal :: GlobalType -> WasmVal -> IO GlobalInstance
 createGlobal (GlobalType gtOwned) val =
   withOwned gtOwned $ \gtPtr ->
-  encodeVal val $ \valPtr -> do
-    p <- c_GlobalInstanceCreate gtPtr valPtr
-    if p == nullPtr
-      then throwIO $ WasmEdgeError ErrCategory_WASM 0 "WasmEdge_GlobalInstanceCreate returned NULL"
-      else GlobalInstance <$> mkOwned (appFunPtr c_GlobalInstanceDelete) p
+    encodeVal val $ \valPtr -> do
+      p <- c_GlobalInstanceCreate gtPtr valPtr
+      if p == nullPtr
+        then throwIO $ WasmEdgeError ErrCategory_WASM 0 "WasmEdge_GlobalInstanceCreate returned NULL"
+        else GlobalInstance <$> mkOwned (appFunPtr c_GlobalInstanceDelete) p
 
 -- | Delete a 'GlobalInstance'.
 deleteGlobal :: GlobalInstance -> IO ()
@@ -118,8 +119,9 @@ deleteGlobal (GlobalInstance o) = finalizeOwned o
 withGlobal :: GlobalType -> WasmVal -> (GlobalInstance -> IO a) -> IO a
 withGlobal gt val = bracket (createGlobal gt val) deleteGlobal
 
--- | Get the 'GlobalType' of a 'GlobalInstance'.
--- Note: the returned 'GlobalType' borrows the type context from the instance.
+{- | Get the 'GlobalType' of a 'GlobalInstance'.
+Note: the returned 'GlobalType' borrows the type context from the instance.
+-}
 getGlobalType :: GlobalInstance -> IO GlobalType
 getGlobalType (GlobalInstance o) =
   withOwned o $ \p -> do
@@ -132,19 +134,20 @@ getGlobalType (GlobalInstance o) =
 getGlobalValue :: GlobalInstance -> IO WasmVal
 getGlobalValue (GlobalInstance o) =
   withOwned o $ \p ->
-  allocaCValue $ \valPtr -> do
-    c_GlobalInstanceGetValue valPtr p
-    decodeVal valPtr
+    allocaCValue $ \valPtr -> do
+      c_GlobalInstanceGetValue valPtr p
+      decodeVal valPtr
 
--- | Set a new value for a mutable global variable.
--- Fails with a 'WasmEdgeError' if the global is immutable or type mismatches.
+{- | Set a new value for a mutable global variable.
+Fails with a 'WasmEdgeError' if the global is immutable or type mismatches.
+-}
 setGlobalValue :: GlobalInstance -> WasmVal -> IO (WasmResult ())
 setGlobalValue (GlobalInstance o) val =
   withOwned o $ \p ->
-  encodeVal val $ \valPtr ->
-  allocaCResult $ \resPtr -> do
-    c_GlobalInstanceSetValue resPtr p valPtr
-    checkResult resPtr
+    encodeVal val $ \valPtr ->
+      allocaCResult $ \resPtr -> do
+        c_GlobalInstanceSetValue resPtr p valPtr
+        checkResult resPtr
 
 -- ---------------------------------------------------------------------------
 -- Unsafe / internal pointer helpers
@@ -175,7 +178,7 @@ disarmGlobal (GlobalInstance o) = disarmOwned o
 -- ---------------------------------------------------------------------------
 
 appFunPtr :: FunPtr (Ptr a -> IO ()) -> Ptr a -> IO ()
-appFunPtr fp p = mkDeleter fp p
+appFunPtr = mkDeleter
 
 foreign import ccall "dynamic"
   mkDeleter :: FunPtr (Ptr a -> IO ()) -> Ptr a -> IO ()

@@ -1,12 +1,13 @@
--- |
--- Module      : WasmEdge.Compiler
--- Description : WasmEdge Ahead-Of-Time (AOT) compiler context
--- Copyright   : (c) 2026 Tushar Adhatrao
--- License     : MIT
--- Stability   : stable
---
--- The 'Compiler' context compiles WebAssembly bytecodes (.wasm) into
--- native shared objects (.so / .dylib) ahead-of-time for maximum execution speed.
+{- |
+Module      : WasmEdge.Compiler
+Description : WasmEdge Ahead-Of-Time (AOT) compiler context
+Copyright   : (c) 2026 Tushar Adhatrao
+License     : MIT
+Stability   : stable
+
+The 'Compiler' context compiles WebAssembly bytecodes (.wasm) into
+native shared objects (.so / .dylib) ahead-of-time for maximum execution speed.
+-}
 module WasmEdge.Compiler
   ( -- * Compiler context
     Compiler
@@ -23,18 +24,18 @@ module WasmEdge.Compiler
   , borrowCompiler
   ) where
 
-import Control.Exception     (bracket, throwIO)
-import Data.ByteString       (ByteString)
-import Foreign.C.String      (withCString)
-import Foreign.Ptr           (Ptr, FunPtr, nullPtr)
+import Control.Exception (bracket, throwIO)
+import Data.ByteString (ByteString)
+import Foreign.C.String (withCString)
+import Foreign.Ptr (FunPtr, Ptr, nullPtr)
 
+import WasmEdge.Configure (Configure, unsafeConfigurePtr)
 import WasmEdge.Error
-import WasmEdge.Configure    (Configure, unsafeConfigurePtr)
-import WasmEdge.Internal.Types     (CompilerTag)
-import WasmEdge.Internal.Ownership (OwnedCtx, mkOwned, withOwned, finalizeOwned)
-import WasmEdge.Internal.Storable  (allocaCResult)
-import WasmEdge.Internal.Utils     (checkResult, withWasmBytes)
 import WasmEdge.Internal.FFI.Compiler
+import WasmEdge.Internal.Ownership (OwnedCtx, finalizeOwned, mkOwned, withOwned)
+import WasmEdge.Internal.Storable (allocaCResult)
+import WasmEdge.Internal.Types (CompilerTag)
+import WasmEdge.Internal.Utils (checkResult, withWasmBytes)
 
 -- ---------------------------------------------------------------------------
 -- Compiler context
@@ -68,21 +69,21 @@ withCompiler mCfg = bracket (createCompiler mCfg) deleteCompiler
 compileFile :: Compiler -> FilePath -> FilePath -> IO (WasmResult ())
 compileFile (Compiler o) inPath outPath =
   withOwned o $ \p ->
-  withCString inPath  $ \cIn ->
-  withCString outPath $ \cOut ->
-  allocaCResult $ \resPtr -> do
-    c_CompilerCompile resPtr p cIn cOut
-    checkResult resPtr
+    withCString inPath $ \cIn ->
+      withCString outPath $ \cOut ->
+        allocaCResult $ \resPtr -> do
+          c_CompilerCompile resPtr p cIn cOut
+          checkResult resPtr
 
 -- | Compile an in-memory WebAssembly binary to a native shared library at the output path.
 compileBytes :: Compiler -> ByteString -> FilePath -> IO (WasmResult ())
 compileBytes (Compiler o) bs outPath =
   withOwned o $ \p ->
-  withWasmBytes bs $ \bytesPtr ->
-  withCString outPath $ \cOut ->
-  allocaCResult $ \resPtr -> do
-    c_CompilerCompileFromBuffer resPtr p bytesPtr cOut
-    checkResult resPtr
+    withWasmBytes bs $ \bytesPtr ->
+      withCString outPath $ \cOut ->
+        allocaCResult $ \resPtr -> do
+          c_CompilerCompileFromBuffer resPtr p bytesPtr cOut
+          checkResult resPtr
 
 -- ---------------------------------------------------------------------------
 -- Unsafe / internal pointer helpers
@@ -101,7 +102,7 @@ borrowCompiler p = Compiler <$> mkOwned (\_ -> pure ()) p
 -- ---------------------------------------------------------------------------
 
 appFunPtr :: FunPtr (Ptr a -> IO ()) -> Ptr a -> IO ()
-appFunPtr fp p = mkDeleter fp p
+appFunPtr = mkDeleter
 
 foreign import ccall "dynamic"
   mkDeleter :: FunPtr (Ptr a -> IO ()) -> Ptr a -> IO ()

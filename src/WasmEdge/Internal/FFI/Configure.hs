@@ -1,32 +1,40 @@
--- |
--- Module      : WasmEdge.Internal.FFI.Configure
--- Description : Raw FFI for WasmEdge configure and statistics contexts
--- Copyright   : (c) wasmedge-hs contributors, 2026
--- License     : Apache-2.0
--- Stability   : internal
 {-# LANGUAGE ForeignFunctionInterface #-}
+
+{- |
+Module      : WasmEdge.Internal.FFI.Configure
+Description : Raw FFI for WasmEdge configure and statistics contexts
+Copyright   : (c) wasmedge-hs contributors, 2026
+License     : Apache-2.0
+Stability   : internal
+-}
 module WasmEdge.Internal.FFI.Configure
   ( -- * Configure context lifecycle
     c_ConfigureCreate
   , c_ConfigureDelete
+
     -- * Proposals
   , c_ConfigureAddProposal
   , c_ConfigureRemoveProposal
   , c_ConfigureHasProposal
   , c_ConfigureSetWASMStandard
+
     -- * Host registrations
   , c_ConfigureAddHostRegistration
   , c_ConfigureRemoveHostRegistration
   , c_ConfigureHasHostRegistration
+
     -- * Memory limits
   , c_ConfigureSetMaxMemoryPage
   , c_ConfigureGetMaxMemoryPage
+
     -- * Interpreter options
   , c_ConfigureSetForceInterpreter
   , c_ConfigureIsForceInterpreter
+
     -- * Run mode (0.18+)
   , c_ConfigureSetRunningMode
   , c_ConfigureGetRunningMode
+
     -- * Compiler options
   , c_ConfigureCompilerSetOptimizationLevel
   , c_ConfigureCompilerGetOptimizationLevel
@@ -38,6 +46,7 @@ module WasmEdge.Internal.FFI.Configure
   , c_ConfigureCompilerIsGenericBinary
   , c_ConfigureCompilerSetInterruptible
   , c_ConfigureCompilerIsInterruptible
+
     -- * Statistics options
   , c_ConfigureStatisticsSetInstructionCounting
   , c_ConfigureStatisticsIsInstructionCounting
@@ -45,6 +54,7 @@ module WasmEdge.Internal.FFI.Configure
   , c_ConfigureStatisticsIsCostMeasuring
   , c_ConfigureStatisticsSetTimeMeasuring
   , c_ConfigureStatisticsIsTimeMeasuring
+
     -- * Statistics context lifecycle
   , c_StatisticsCreate
   , c_StatisticsDelete
@@ -56,9 +66,9 @@ module WasmEdge.Internal.FFI.Configure
   , c_StatisticsClear
   ) where
 
+import Data.Word (Word32, Word64)
 import Foreign.C
 import Foreign.Ptr
-import Data.Word (Word32, Word64)
 
 import WasmEdge.Internal.Types
 

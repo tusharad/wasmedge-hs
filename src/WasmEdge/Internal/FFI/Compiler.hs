@@ -1,10 +1,12 @@
--- |
--- Module      : WasmEdge.Internal.FFI.Compiler
--- Description : Raw FFI for WasmEdge AOT compiler context
--- Copyright   : (c) wasmedge-hs contributors, 2026
--- License     : Apache-2.0
--- Stability   : internal
 {-# LANGUAGE ForeignFunctionInterface #-}
+
+{- |
+Module      : WasmEdge.Internal.FFI.Compiler
+Description : Raw FFI for WasmEdge AOT compiler context
+Copyright   : (c) wasmedge-hs contributors, 2026
+License     : Apache-2.0
+Stability   : internal
+-}
 module WasmEdge.Internal.FFI.Compiler
   ( c_CompilerCreate
   , c_CompilerDelete
@@ -14,8 +16,8 @@ module WasmEdge.Internal.FFI.Compiler
 
 import Foreign.C
 import Foreign.Ptr
+import WasmEdge.Internal.Storable (CBytes_, CResult_)
 import WasmEdge.Internal.Types
-import WasmEdge.Internal.Storable (CResult_, CBytes_)
 
 foreign import ccall unsafe "WasmEdge_CompilerCreate"
   c_CompilerCreate :: Ptr ConfigureTag -> IO (Ptr CompilerTag)
@@ -27,8 +29,9 @@ foreign import ccall safe "hs_WasmEdge_CompilerCompile"
   c_CompilerCompile :: Ptr CResult_ -> Ptr CompilerTag -> CString -> CString -> IO ()
 
 foreign import ccall safe "hs_WasmEdge_CompilerCompileFromBuffer"
-  c_CompilerCompileFromBuffer :: Ptr CResult_
-                                -> Ptr CompilerTag
-                                -> Ptr CBytes_
-                                -> CString
-                                -> IO ()
+  c_CompilerCompileFromBuffer ::
+    Ptr CResult_ ->
+    Ptr CompilerTag ->
+    Ptr CBytes_ ->
+    CString ->
+    IO ()

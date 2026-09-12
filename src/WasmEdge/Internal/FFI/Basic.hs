@@ -1,28 +1,32 @@
--- |
--- Module      : WasmEdge.Internal.FFI.Basic
--- Description : Raw FFI bindings for WasmEdge basic types: version, string, bytes, result, log
--- Copyright   : (c) wasmedge-hs contributors, 2026
--- License     : Apache-2.0
--- Stability   : internal
---
--- Direct 'foreign import' declarations for all WasmEdge basic C API functions,
--- via the @cbits/wasmedge_hs_shims.c@ shim layer. All struct-by-value returns
--- have been converted to out-pointer style.
---
--- __Do not import this module in user code.__
 {-# LANGUAGE ForeignFunctionInterface #-}
+
+{- |
+Module      : WasmEdge.Internal.FFI.Basic
+Description : Raw FFI bindings for WasmEdge basic types: version, string, bytes, result, log
+Copyright   : (c) wasmedge-hs contributors, 2026
+License     : Apache-2.0
+Stability   : internal
+
+Direct 'foreign import' declarations for all WasmEdge basic C API functions,
+via the @cbits/wasmedge_hs_shims.c@ shim layer. All struct-by-value returns
+have been converted to out-pointer style.
+
+__Do not import this module in user code.__
+-}
 module WasmEdge.Internal.FFI.Basic
   ( -- * Version
     c_VersionGet
   , c_VersionGetMajor
   , c_VersionGetMinor
   , c_VersionGetPatch
+
     -- * Logging
   , c_LogSetErrorLevel
   , c_LogSetDebugLevel
   , c_LogOff
   , c_LogSetLevel
   , c_LogSetCallback
+
     -- * String (via shims)
   , c_StringCreateByCString
   , c_StringCreateByBuffer
@@ -32,12 +36,14 @@ module WasmEdge.Internal.FFI.Basic
   , c_StringDelete
   , c_StringGetLength
   , c_StringGetBuf
+
     -- * Bytes (via shims)
   , c_BytesCreate
   , c_BytesWrap
   , c_BytesDelete
   , c_BytesGetLength
   , c_BytesGetBuf
+
     -- * Result (via shims)
   , c_Result_Success
   , c_Result_Terminate
@@ -47,24 +53,26 @@ module WasmEdge.Internal.FFI.Basic
   , c_ResultGetCode
   , c_ResultGetCategory
   , c_ResultGetMessage
+
     -- * Raw callback type
   , RawLogCallbackT
   , mkLogCallback
   ) where
 
+import Data.Int (Int32)
+import Data.Word (Word32, Word8)
 import Foreign.C
 import Foreign.Ptr
-import Data.Word (Word32, Word8)
-import Data.Int  (Int32)
 
-import WasmEdge.Internal.Storable (CString_, CBytes_, CResult_)
+import WasmEdge.Internal.Storable (CBytes_, CResult_, CString_)
 
 -- ---------------------------------------------------------------------------
 -- Version functions
 -- ---------------------------------------------------------------------------
 
--- | Get the version string of the WasmEdge C API (e.g., @\"0.18.0\"@).
--- The returned pointer points to a static string — do NOT free it.
+{- | Get the version string of the WasmEdge C API (e.g., @\"0.18.0\"@).
+The returned pointer points to a static string — do NOT free it.
+-}
 foreign import ccall unsafe "WasmEdge_VersionGet"
   c_VersionGet :: IO CString
 
@@ -96,17 +104,19 @@ foreign import ccall unsafe "WasmEdge_LogSetDebugLevel"
 foreign import ccall unsafe "WasmEdge_LogOff"
   c_LogOff :: IO ()
 
--- | Set the log level to a specific 'Word32' value (maps to 'WasmEdge_LogLevel' enum).
--- Use the 'WasmEdge.Log.LogLevel' type and 'logLevelToC' for safe access.
+{- | Set the log level to a specific 'Word32' value (maps to 'WasmEdge_LogLevel' enum).
+Use the 'WasmEdge.Log.LogLevel' type and 'logLevelToC' for safe access.
+-}
 foreign import ccall unsafe "WasmEdge_LogSetLevel"
   c_LogSetLevel :: Word32 -> IO ()
 
--- | The raw C type of a log callback:
--- @void callback(const WasmEdge_LogMessage *msg)@
---
--- We represent the message pointer as 'Ptr ()' since hsc2hs will resolve
--- the exact struct layout separately. Users should use the public
--- 'WasmEdge.Log.setLogCallback' API instead of this raw import.
+{- | The raw C type of a log callback:
+@void callback(const WasmEdge_LogMessage *msg)@
+
+We represent the message pointer as 'Ptr ()' since hsc2hs will resolve
+the exact struct layout separately. Users should use the public
+'WasmEdge.Log.setLogCallback' API instead of this raw import.
+-}
 type RawLogCallbackT = Ptr () -> IO ()
 
 foreign import ccall unsafe "wrapper"
@@ -120,13 +130,15 @@ foreign import ccall safe "WasmEdge_LogSetCallback"
 -- String functions (via shims — all take/return Ptr CString_)
 -- ---------------------------------------------------------------------------
 
--- | Create a WasmEdge_String from a NULL-terminated C string.
--- Caller owns the result; call 'c_StringDelete' to free.
+{- | Create a WasmEdge_String from a NULL-terminated C string.
+Caller owns the result; call 'c_StringDelete' to free.
+-}
 foreign import ccall unsafe "hs_WasmEdge_StringCreateByCString"
   c_StringCreateByCString :: Ptr CString_ -> CString -> IO ()
 
--- | Create a WasmEdge_String from a buffer with explicit length.
--- Caller owns the result; call 'c_StringDelete' to free.
+{- | Create a WasmEdge_String from a buffer with explicit length.
+Caller owns the result; call 'c_StringDelete' to free.
+-}
 foreign import ccall unsafe "hs_WasmEdge_StringCreateByBuffer"
   c_StringCreateByBuffer :: Ptr CString_ -> CString -> Word32 -> IO ()
 
@@ -158,8 +170,9 @@ foreign import ccall unsafe "hs_WasmEdge_StringGetBuf"
 -- Bytes functions (via shims)
 -- ---------------------------------------------------------------------------
 
--- | Create a WasmEdge_Bytes from a buffer (copies the data).
--- Caller owns the result; call 'c_BytesDelete' to free.
+{- | Create a WasmEdge_Bytes from a buffer (copies the data).
+Caller owns the result; call 'c_BytesDelete' to free.
+-}
 foreign import ccall unsafe "hs_WasmEdge_BytesCreate"
   c_BytesCreate :: Ptr CBytes_ -> Ptr Word8 -> Word32 -> IO ()
 
@@ -199,8 +212,9 @@ foreign import ccall unsafe "hs_WasmEdge_Result_Fail"
 foreign import ccall unsafe "hs_WasmEdge_ResultOK"
   c_ResultOK :: Ptr CResult_ -> IO CBool
 
--- | Generate a result with a specific error category and code.
--- Category is a Word32 mapping to 'WasmEdge_ErrCategory'.
+{- | Generate a result with a specific error category and code.
+Category is a Word32 mapping to 'WasmEdge_ErrCategory'.
+-}
 foreign import ccall unsafe "hs_WasmEdge_ResultGen"
   c_ResultGen :: Ptr CResult_ -> Word32 -> Word32 -> IO ()
 

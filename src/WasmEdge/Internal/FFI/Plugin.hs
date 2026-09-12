@@ -1,10 +1,12 @@
--- |
--- Module      : WasmEdge.Internal.FFI.Plugin
--- Description : Raw FFI for WasmEdge plugin context
--- Copyright   : (c) wasmedge-hs contributors, 2026
--- License     : Apache-2.0
--- Stability   : internal
 {-# LANGUAGE ForeignFunctionInterface #-}
+
+{- |
+Module      : WasmEdge.Internal.FFI.Plugin
+Description : Raw FFI for WasmEdge plugin context
+Copyright   : (c) wasmedge-hs contributors, 2026
+License     : Apache-2.0
+Stability   : internal
+-}
 module WasmEdge.Internal.FFI.Plugin
   ( c_PluginLoadWithDefaultPaths
   , c_PluginLoadFromPath
@@ -18,12 +20,12 @@ module WasmEdge.Internal.FFI.Plugin
   , c_PluginInitWASINN
   ) where
 
+import Data.Word (Word32)
 import Foreign.C
 import Foreign.Ptr
-import Data.Word (Word32)
 
-import WasmEdge.Internal.Types
 import WasmEdge.Internal.Storable (CString_)
+import WasmEdge.Internal.Types
 
 foreign import ccall unsafe "WasmEdge_PluginLoadWithDefaultPaths"
   c_PluginLoadWithDefaultPaths :: IO ()

@@ -1,12 +1,14 @@
--- |
--- Module      : WasmEdge.Internal.FFI.Value
--- Description : Raw FFI for WasmEdge value types and value gen/get
--- Copyright   : (c) wasmedge-hs contributors, 2026
--- License     : Apache-2.0
--- Stability   : internal
---
--- __Do not import this module in user code.__
 {-# LANGUAGE ForeignFunctionInterface #-}
+
+{- |
+Module      : WasmEdge.Internal.FFI.Value
+Description : Raw FFI for WasmEdge value types and value gen/get
+Copyright   : (c) wasmedge-hs contributors, 2026
+License     : Apache-2.0
+Stability   : internal
+
+__Do not import this module in user code.__
+-}
 module WasmEdge.Internal.FFI.Value
   ( -- * ValType generators (via shims)
     c_ValTypeGenI32
@@ -16,6 +18,7 @@ module WasmEdge.Internal.FFI.Value
   , c_ValTypeGenV128
   , c_ValTypeGenFuncRef
   , c_ValTypeGenExternRef
+
     -- * ValType predicates
   , c_ValTypeIsEqual
   , c_ValTypeIsI32
@@ -27,6 +30,7 @@ module WasmEdge.Internal.FFI.Value
   , c_ValTypeIsExternRef
   , c_ValTypeIsRef
   , c_ValTypeIsRefNull
+
     -- * Value generators (via shims)
   , c_ValueGenI32
   , c_ValueGenI64
@@ -37,6 +41,7 @@ module WasmEdge.Internal.FFI.Value
   , c_ValueGenExternRef
   , c_ValueGenNullFuncRef
   , c_ValueGenNullExternRef
+
     -- * Value extractors
   , c_ValueGetI32
   , c_ValueGetI64
@@ -47,6 +52,7 @@ module WasmEdge.Internal.FFI.Value
   , c_ValueGetFuncRef
   , c_ValueGetExternRef
   , c_ValueGetType
+
     -- * Value array helpers
   , c_ValueArrayAlloc
   , c_ValueArrayFree
@@ -54,13 +60,13 @@ module WasmEdge.Internal.FFI.Value
   , c_ValueArrayGet
   ) where
 
+import Data.Int (Int32, Int64)
+import Data.Word (Word32, Word64)
 import Foreign.C
 import Foreign.Ptr
-import Data.Word (Word32, Word64)
-import Data.Int  (Int32, Int64)
 
 import WasmEdge.Internal.Storable (CValType_, CValue_)
-import WasmEdge.Internal.Types    (FunctionInstanceTag)
+import WasmEdge.Internal.Types (FunctionInstanceTag)
 
 -- ---------------------------------------------------------------------------
 -- ValType generators
@@ -141,8 +147,9 @@ foreign import ccall unsafe "hs_WasmEdge_ValueGenF64"
 foreign import ccall unsafe "hs_WasmEdge_ValueGenV128"
   c_ValueGenV128 :: Ptr CValue_ -> Word64 -> Word64 -> IO ()
 
--- | Generate a FuncRef value from a FunctionInstance pointer.
--- Passing 'nullPtr' generates a null FuncRef.
+{- | Generate a FuncRef value from a FunctionInstance pointer.
+Passing 'nullPtr' generates a null FuncRef.
+-}
 foreign import ccall unsafe "hs_WasmEdge_ValueGenFuncRef"
   c_ValueGenFuncRef :: Ptr CValue_ -> Ptr FunctionInstanceTag -> IO ()
 
@@ -181,8 +188,9 @@ foreign import ccall unsafe "hs_WasmEdge_ValueGetV128"
 foreign import ccall unsafe "hs_WasmEdge_ValueIsNullRef"
   c_ValueIsNullRef :: Ptr CValue_ -> IO CBool
 
--- | Get the FunctionInstance pointer from a FuncRef value.
--- Returns 'nullPtr' for a null FuncRef.
+{- | Get the FunctionInstance pointer from a FuncRef value.
+Returns 'nullPtr' for a null FuncRef.
+-}
 foreign import ccall unsafe "hs_WasmEdge_ValueGetFuncRef"
   c_ValueGetFuncRef :: Ptr CValue_ -> IO (Ptr FunctionInstanceTag)
 

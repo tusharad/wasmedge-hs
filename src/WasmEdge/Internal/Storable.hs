@@ -1,16 +1,16 @@
--- |
--- Module      : WasmEdge.Internal.Storable
--- Description : Storable instances for WasmEdge C structs
--- Copyright   : (c) wasmedge-hs contributors, 2026
--- License     : Apache-2.0
--- Stability   : internal
---
--- Provides 'Storable' instances and allocation helpers for the C structs
--- that WasmEdge returns by value. These are used internally when calling
--- the shim layer.
---
--- __Do not import this module in user code.__
-{-# LANGUAGE MagicHash #-}
+{- |
+Module      : WasmEdge.Internal.Storable
+Description : Storable instances for WasmEdge C structs
+Copyright   : (c) 2026 Tushar Adhatrao
+License     : MIT
+Stability   : internal
+
+Provides 'Storable' instances and allocation helpers for the C structs
+that WasmEdge returns by value. These are used internally when calling
+the shim layer.
+
+__Do not import this module in user code.__
+-}
 module WasmEdge.Internal.Storable
   ( -- * WasmEdge_String layout
     CString_ (..)
@@ -19,56 +19,62 @@ module WasmEdge.Internal.Storable
   , peekCStringLen
   , cStringSize
   , stringSize
+
     -- * WasmEdge_Bytes layout
   , CBytes_ (..)
   , allocaCBytes
+
     -- * WasmEdge_Result layout
   , CResult_ (..)
   , allocaCResult
   , peekResultCode
+
     -- * WasmEdge_ValType layout (8 bytes opaque)
   , CValType_ (..)
   , allocaCValType
   , valTypeSize
+
     -- * WasmEdge_Value layout (uint128 + ValType = 24 bytes)
   , CValue_ (..)
   , allocaCValue
   , valueSize
+
     -- * Stack-allocated array helpers
   , withCValTypeArray
   , withCValueArray
   ) where
 
-import Foreign.Ptr
-import Foreign.Storable
+import Data.Int (Int32)
+import Data.Word (Word32, Word64, Word8)
 import Foreign.Marshal.Alloc (alloca, allocaBytes)
 import Foreign.Marshal.Array (allocaArray)
-import Data.Word (Word8, Word32, Word64)
-import Data.Int  (Int32)
+import Foreign.Ptr
+import Foreign.Storable
 
 -- ---------------------------------------------------------------------------
 -- WasmEdge_String  (uint32_t Length; const char* Buf)
 -- ---------------------------------------------------------------------------
 
--- | Opaque placeholder for the 'WasmEdge_String' C struct layout.
--- Use 'allocaCString' to allocate on the stack.
+{- | Opaque placeholder for the 'WasmEdge_String' C struct layout.
+Use 'allocaCString' to allocate on the stack.
+-}
 data CString_
 
 -- | Allocate a stack-allocated 'WasmEdge_String' and pass it to the action.
 allocaCString :: (Ptr CString_ -> IO a) -> IO a
-allocaCString action = allocaBytes cStringSize action
+allocaCString = allocaBytes cStringSize
 
 -- Size: uint32_t (4) + padding (4 on 64-bit) + ptr (8) = 16 bytes typically
 -- We use hsc2hs for the real layout; for now use a conservative 16 bytes.
 cStringSize :: Int
-cStringSize = 16  -- overridden by hsc2hs #size WasmEdge_String at compile time
+cStringSize = 16 -- overridden by hsc2hs #size WasmEdge_String at compile time
 
 stringSize :: Int
 stringSize = cStringSize
 
 -- | Peek the buffer pointer from a 'WasmEdge_String'.
 peekCStringBuf :: Ptr CString_ -> IO (Ptr Word8)
-peekCStringBuf p = peekByteOff p 8  -- Buf is at offset 8 (after Length + padding)
+peekCStringBuf p = peekByteOff p 8 -- Buf is at offset 8 (after Length + padding)
 
 -- | Peek the length from a 'WasmEdge_String'.
 peekCStringLen :: Ptr CString_ -> IO Word32
@@ -82,7 +88,7 @@ peekCStringLen p = peekByteOff p 0
 data CBytes_
 
 allocaCBytes :: (Ptr CBytes_ -> IO a) -> IO a
-allocaCBytes action = allocaBytes 16 action  -- same layout as WasmEdge_String
+allocaCBytes = allocaBytes 16 -- same layout as WasmEdge_String
 
 -- ---------------------------------------------------------------------------
 -- WasmEdge_Result  (uint32_t Code)
@@ -113,7 +119,7 @@ allocaCValType = allocaBytes valTypeSize
 
 -- | Allocate an array of n 'CValType_' structs on the stack.
 withCValTypeArray :: Int -> (Ptr CValType_ -> IO a) -> IO a
-withCValTypeArray n action = allocaBytes (n * valTypeSize) action
+withCValTypeArray n = allocaBytes (n * valTypeSize)
 
 -- ---------------------------------------------------------------------------
 -- WasmEdge_Value  (uint128_t Value; WasmEdge_ValType Type)

@@ -7,9 +7,9 @@ import WasmEdge.Types
 
 spec :: Spec
 spec = describe "WasmEdge Configure" $ do
-
   it "creates and deletes without crashing" $
-    withConfigure $ \_ -> pure ()
+    withConfigure $
+      \_ -> pure ()
 
   describe "Proposals" $ do
     it "Threads not enabled by default" $
@@ -64,14 +64,14 @@ spec = describe "WasmEdge Configure" $ do
   describe "Compiler options" $ do
     it "sets optimization level" $
       withConfigure $ \cfg -> do
-        setCompilerOptions cfg defaultCompilerOptions { compOptLevel = OptO1 }
+        setCompilerOptions cfg defaultCompilerOptions {compOptLevel = OptO1}
         opts <- getCompilerOptions cfg
         compOptLevel opts `shouldBe` OptO1
 
   describe "Statistics options" $ do
     it "enables instruction counting" $
       withConfigure $ \cfg -> do
-        setStatisticsOptions cfg defaultStatisticsOptions { statInstructionCounting = True }
+        setStatisticsOptions cfg defaultStatisticsOptions {statInstructionCounting = True}
         opts <- getStatisticsOptions cfg
         statInstructionCounting opts `shouldBe` True
 

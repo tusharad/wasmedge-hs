@@ -4,48 +4,39 @@
 
 ### Prerequisites
 
-1. **GHC 9.6+** and **cabal 3.10+**:
+1. **GHC 9.6+** and **Stack 3.0+**:
    ```bash
-   ghcup install ghc 9.8.4
-   ghcup install cabal 3.12
+   ghcup install stack
    ```
 
-2. **WasmEdge 0.18.x**:
-   ```bash
-   curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -v 0.18.0
-   # or via pkg-config on Linux:
-   # export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
-   ```
-
-   On macOS (Apple Silicon):
+2. **WasmEdge 0.17.1**:
+   On macOS (Homebrew):
    ```bash
    brew install wasmedge
    ```
 
-3. Set up the path (if non-standard install):
+   On Linux:
    ```bash
-   # In cabal.project.local (not committed):
-   extra-lib-dirs: /opt/wasmedge/lib
-   extra-include-dirs: /opt/wasmedge/include
+   curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash -s -- -v 0.17.1
    ```
 
-### Building
+### Building with Stack
 
 ```bash
 cd wasmedge-hs
-cabal build
+stack build
 ```
 
 ### Running tests
 
 ```bash
-cabal test
+stack test
 ```
 
 ### Running benchmarks
 
 ```bash
-cabal bench
+stack bench
 ```
 
 ---

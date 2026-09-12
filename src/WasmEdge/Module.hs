@@ -1,8 +1,8 @@
 -- |
 -- Module      : WasmEdge.Module
 -- Description : WasmEdge module instances, host modules, and WASI
--- Copyright   : (c) wasmedge-hs contributors, 2026
--- License     : Apache-2.0
+-- Copyright   : (c) 2026 Tushar Adhatrao
+-- License     : MIT
 -- Stability   : stable
 --
 -- Provides types and functions for managing WebAssembly module instances:
@@ -46,6 +46,7 @@ module WasmEdge.Module
   , ModuleBuilder
   , buildHostModule
   , builderAddFunction
+  , builderAddHostFunc
   , builderAddTable
   , builderAddMemory
   , builderAddGlobal
@@ -67,7 +68,9 @@ import Foreign.Ptr           (Ptr, FunPtr, nullPtr, plusPtr)
 import Data.Word             (Word32)
 
 import WasmEdge.Error
-import WasmEdge.Function     (FunctionInstance, borrowFunction, unsafeFunctionPtr, disarmFunction)
+import WasmEdge.Function     ( FunctionInstance, borrowFunction, unsafeFunctionPtr, disarmFunction
+                             , ToHostFunc, createHostFunction
+                             )
 import WasmEdge.Table        (TableInstance, borrowTable, unsafeTablePtr, disarmTable)
 import WasmEdge.Memory       (MemoryInstance, borrowMemory, unsafeMemoryPtr, disarmMemory)
 import WasmEdge.Global       (GlobalInstance, borrowGlobal, unsafeGlobalPtr, disarmGlobal)
@@ -319,6 +322,13 @@ buildHostModule name act = do
 -- | Add a function in a 'ModuleBuilder'.
 builderAddFunction :: ModuleBuilder -> Text -> FunctionInstance -> IO ()
 builderAddFunction (ModuleBuilder m) = addFunction m
+
+-- | Add a typed Haskell host function to a host module builder, automatically
+-- inferring its WebAssembly signature and handling argument/result conversions.
+builderAddHostFunc :: (ToHostFunc f) => ModuleBuilder -> Text -> f -> IO ()
+builderAddHostFunc (ModuleBuilder m) name fn = do
+  fnInst <- createHostFunction fn
+  addFunction m name fnInst
 
 -- | Add a table in a 'ModuleBuilder'.
 builderAddTable :: ModuleBuilder -> Text -> TableInstance -> IO ()

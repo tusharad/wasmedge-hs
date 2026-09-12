@@ -1,8 +1,8 @@
 -- |
 -- Module      : WasmEdge.Log
 -- Description : WasmEdge runtime logging configuration
--- Copyright   : (c) wasmedge-hs contributors, 2026
--- License     : Apache-2.0
+-- Copyright   : (c) 2026 Tushar Adhatrao
+-- License     : MIT
 -- Stability   : stable
 --
 -- Configure the WasmEdge logging system. The logging system is a global

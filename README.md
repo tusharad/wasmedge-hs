@@ -2,9 +2,9 @@
 
 Type-safe, idiomatic, high-performance Haskell FFI bindings for the [WasmEdge](https://wasmedge.org) WebAssembly runtime.
 
-[![Build & Test](https://github.com/your-org/wasmedge-hs/actions/workflows/ci.yml/badge.svg)](https://github.com/your-org/wasmedge-hs/actions/workflows/ci.yml)
+[![Build & Test](https://github.com/tusharad/wasmedge-hs/actions/workflows/ci.yml/badge.svg)](https://github.com/tusharad/wasmedge-hs/actions/workflows/ci.yml)
 [![Hackage](https://img.shields.io/hackage/v/wasmedge-hs.svg)](https://hackage.haskell.org/package/wasmedge-hs)
-[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 ---
 
@@ -43,10 +43,17 @@ brew install wasmedge
 curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash
 ```
 
-### Building the Package
+### Building with Stack
 ```bash
-cabal build
-cabal test
+# Default build (LTS 22 / GHC 9.6.6)
+stack build
+stack test
+
+# Or choose a specific GHC / LTS version:
+stack --stack-yaml stack-lts-22.yaml test  # GHC 9.6.6
+stack --stack-yaml stack-lts-23.yaml test  # GHC 9.8.4
+stack --stack-yaml stack-lts-24.yaml test  # GHC 9.10.1
+stack --stack-yaml stack-nightly.yaml test # GHC 9.12.x
 ```
 
 ---
@@ -98,6 +105,13 @@ main = do
         Right () <- registerModuleFromImport vm hostMod
         res <- runWasmBytes vm guestWasm "call_host" [WasmI32 99]
         print res -- Right [WasmI32 100]
+
+-- Or write typed Haskell functions directly without manual WasmVal pattern matching:
+hostMod2 <- buildHostModule "host_module" $ \b -> do
+  builderAddHostFunc b "add" $ \(x :: Int32) (y :: Int32) -> pure (x + y) :: IO Int32
+  builderAddHostFunc b "print_guest" $ \frame (ptr :: Word32) (len :: Word32) -> do
+    mBytes <- readCallerMemory frame 0 ptr len
+    maybe (pure ()) print mBytes
 ```
 
 ### 3. Ahead-Of-Time (AOT) Compilation
@@ -156,4 +170,4 @@ Microbenchmarks are implemented using Criterion (`cabal run wasmedge-hs-bench --
 
 ## License
 
-Apache-2.0 License. See [LICENSE](LICENSE) for details.
+MIT License. Copyright (c) 2026 Tushar Adhatrao. See [LICENSE](LICENSE) for details.

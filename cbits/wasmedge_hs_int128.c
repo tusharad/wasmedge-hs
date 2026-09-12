@@ -1,4 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 Tushar Adhatrao
 // wasmedge-hs: uint128_t <-> (uint64_t hi, uint64_t lo) helpers
 //
 // These are in a separate file because uint128_t is a GCC/Clang extension

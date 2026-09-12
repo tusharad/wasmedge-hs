@@ -1,0 +1,17 @@
+# Stack configuration for wasmedge-hs
+# Snapshot: Stackage LTS 23.18 (GHC 9.8.4)
+
+snapshot: lts-23.18
+
+packages:
+  - .
+
+extra-include-dirs:
+  - /opt/homebrew/include
+  - /usr/local/include
+  - /usr/include
+
+extra-lib-dirs:
+  - /opt/homebrew/lib
+  - /usr/local/lib
+  - /usr/lib

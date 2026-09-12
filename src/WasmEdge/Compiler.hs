@@ -1,8 +1,8 @@
 -- |
 -- Module      : WasmEdge.Compiler
 -- Description : WasmEdge Ahead-Of-Time (AOT) compiler context
--- Copyright   : (c) wasmedge-hs contributors, 2026
--- License     : Apache-2.0
+-- Copyright   : (c) 2026 Tushar Adhatrao
+-- License     : MIT
 -- Stability   : stable
 --
 -- The 'Compiler' context compiles WebAssembly bytecodes (.wasm) into

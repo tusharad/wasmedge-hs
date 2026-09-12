@@ -1,8 +1,8 @@
 -- |
 -- Module      : WasmEdge
 -- Description : Re-exports for convenient import of the WasmEdge Haskell bindings
--- Copyright   : (c) wasmedge-hs contributors, 2026
--- License     : Apache-2.0
+-- Copyright   : (c) 2026 Tushar Adhatrao
+-- License     : MIT
 -- Stability   : stable
 --
 -- Import this module for access to the most commonly used functions:
@@ -20,7 +20,8 @@
 -- * "WasmEdge.Configure" — WASM proposals, compiler settings, run mode
 -- * "WasmEdge.VM"        — High-level VM API
 -- * "WasmEdge.Module"    — Host module building
--- * "WasmEdge.Function"  — Host function creation
+-- * "WasmEdge.Function"  — Host function creation and 'ToHostFunc'
+-- * "WasmEdge.Caller"    — Caller frame and memory access
 -- * "WasmEdge.Memory"    — Memory instance access
 -- * "WasmEdge.Plugin"    — Plugin loading
 -- * "WasmEdge.Async"     — Async execution
@@ -46,6 +47,9 @@ module WasmEdge
     -- * VM (re-exported from "WasmEdge.VM")
   , VM
   , withVM
+  , VMConfig (..)
+  , defaultVMConfig
+  , withVMConfig
   , runWasmFile
   , runWasmBytes
   , loadWasmFile
@@ -53,6 +57,12 @@ module WasmEdge
   , validate
   , instantiate
   , execute
+    -- * Host Functions (re-exported from "WasmEdge.Function")
+  , ToHostFunc (..)
+  , WasmValType (..)
+  , WasmReturn (..)
+  , createHostFunction
+  , withHostFunction
   ) where
 
 import Data.Text        (Text)
@@ -62,8 +72,13 @@ import Data.Word        (Word32)
 
 import WasmEdge.Types
 import WasmEdge.Error
-import WasmEdge.VM     (VM, withVM, runWasmFile, runWasmBytes,
-                         loadWasmFile, loadWasmBytes, validate, instantiate, execute)
+import WasmEdge.VM      ( VM, withVM, runWasmFile, runWasmBytes
+                        , loadWasmFile, loadWasmBytes, validate, instantiate, execute
+                        , VMConfig (..), defaultVMConfig, withVMConfig
+                        )
+import WasmEdge.Function ( ToHostFunc (..), WasmValType (..), WasmReturn (..)
+                         , createHostFunction, withHostFunction
+                         )
 import WasmEdge.Internal.FFI.Basic
 
 -- ---------------------------------------------------------------------------

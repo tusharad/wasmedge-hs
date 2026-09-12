@@ -1,0 +1,18 @@
+# Stack configuration for wasmedge-hs
+# Snapshot: Stackage LTS 22.44 (GHC 9.6.6)
+
+snapshot:
+  url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/lts/22/44.yaml
+
+packages:
+  - .
+
+extra-include-dirs:
+  - /opt/homebrew/include
+  - /usr/local/include
+  - /usr/include
+
+extra-lib-dirs:
+  - /opt/homebrew/lib
+  - /usr/local/lib
+  - /usr/lib

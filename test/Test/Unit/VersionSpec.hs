@@ -2,9 +2,7 @@
 module Test.Unit.VersionSpec (spec) where
 
 import Test.Hspec
-import Data.Char  (isDigit)
 import Data.List  (isPrefixOf)
-import Data.Word  (Word32)
 import Foreign.C  (peekCString)
 import WasmEdge.Internal.FFI.Basic
 
@@ -25,13 +23,13 @@ spec = describe "WasmEdge version" $ do
     major <- c_VersionGetMajor
     major `shouldBe` 0
 
-  it "VersionGetMinor returns >= 14" $ do
+  it "VersionGetMinor returns 17 for WasmEdge 0.17.1" $ do
     minor <- c_VersionGetMinor
-    minor `shouldSatisfy` (>= 14)
+    minor `shouldBe` 17
 
-  it "VersionGetPatch returns a plausible patch" $ do
+  it "VersionGetPatch returns 1 for WasmEdge 0.17.1" $ do
     patch <- c_VersionGetPatch
-    patch `shouldSatisfy` (< 1000)
+    patch `shouldBe` 1
 
   it "version components are consistent with version string" $ do
     cs <- c_VersionGet

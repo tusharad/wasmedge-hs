@@ -1,4 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 Tushar Adhatrao
 // wasmedge-hs: umbrella include for hsc2hs preprocessing
 //
 // hsc2hs uses this header to resolve #size, #peek, #poke, and #alignment

@@ -10,10 +10,10 @@ wasmedge-hs  X.Y.Z.W
 ```
 
 Examples:
-- `0.18.0.0` — tracks WasmEdge 0.18, initial Haskell release
-- `0.18.0.1` — bug fix in the Haskell bindings, same WasmEdge target
-- `0.18.1.0` — new Haskell feature additions, same WasmEdge target
-- `0.19.0.0` — tracks WasmEdge 0.19, may have breaking Haskell API changes
+- `0.17.1.0` — tracks WasmEdge 0.17.1, initial stable Haskell release
+- `0.17.1.1` — bug fix in the Haskell bindings, same WasmEdge target
+- `0.17.2.0` — tracks WasmEdge 0.17.2, backwards compatible
+- `0.18.0.0` — tracks WasmEdge 0.18.0, may have breaking Haskell API changes
 
 ## PVP Compliance
 

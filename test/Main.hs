@@ -7,6 +7,7 @@ import qualified Test.Unit.VersionSpec    as Version
 import qualified Test.Unit.ConfigureSpec  as Configure
 import qualified Test.Unit.ValueSpec      as Value
 import qualified Test.Unit.VMSpec         as VM
+import qualified Test.Unit.HostFuncSpec   as HostFunc
 import qualified Test.Unit.OwnershipSpec  as Ownership
 import qualified Test.Property.ValueProp  as ValueProp
 import qualified Test.Property.StringProp as StringProp
@@ -17,6 +18,7 @@ main = hspec $ do
   describe "Configure"  Configure.spec
   describe "Value"      Value.spec
   describe "VM"         VM.spec
+  describe "HostFunc"   HostFunc.spec
   describe "Ownership"  Ownership.spec
   describe "Properties" $ do
     ValueProp.spec

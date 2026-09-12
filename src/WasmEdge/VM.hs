@@ -1,8 +1,8 @@
 -- |
 -- Module      : WasmEdge.VM
 -- Description : High-level WasmEdge VM context
--- Copyright   : (c) wasmedge-hs contributors, 2026
--- License     : Apache-2.0
+-- Copyright   : (c) 2026 Tushar Adhatrao
+-- License     : MIT
 -- Stability   : stable
 --
 -- The 'VM' context provides the highest-level interface for running WASM
@@ -40,6 +40,11 @@ module WasmEdge.VM
   , createVM
   , deleteVM
   , withVM
+    -- * Declarative VM configuration
+  , VMConfig (..)
+  , defaultVMConfig
+  , createVMWithConfig
+  , withVMConfig
     -- * One-shot execution
   , runWasmFile
   , runWasmBytes
@@ -131,6 +136,29 @@ deleteVM (VM owned) = finalizeOwned owned
 -- | Scoped VM context.
 withVM :: Maybe Cfg.Configure -> Maybe St.Store -> (VM -> IO a) -> IO a
 withVM mCfg mStore = bracket (createVM mCfg mStore) deleteVM
+
+-- ---------------------------------------------------------------------------
+-- Declarative VM Configuration (fluent / builder alternative)
+-- ---------------------------------------------------------------------------
+
+-- | Declarative configuration record for initializing a 'VM'.
+-- Inspired by @wasmedge-sdk@'s @VmBuilder@ in Rust.
+data VMConfig = VMConfig
+  { vmConfigure :: !(Maybe Cfg.Configure)
+  , vmStore     :: !(Maybe St.Store)
+  }
+
+-- | Default VM configuration with default options and fresh store.
+defaultVMConfig :: VMConfig
+defaultVMConfig = VMConfig Nothing Nothing
+
+-- | Create a VM context using a 'VMConfig'.
+createVMWithConfig :: VMConfig -> IO VM
+createVMWithConfig cfg = createVM (vmConfigure cfg) (vmStore cfg)
+
+-- | Scoped VM context with declarative 'VMConfig'.
+withVMConfig :: VMConfig -> (VM -> IO a) -> IO a
+withVMConfig cfg = bracket (createVMWithConfig cfg) deleteVM
 
 -- ---------------------------------------------------------------------------
 -- One-shot execution

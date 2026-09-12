@@ -1,6 +1,6 @@
 cabal-version:   3.4
 name:            wasmedge-hs
-version:         0.18.0.0
+version:         0.17.1.0
 
 synopsis:
   Haskell bindings for the WasmEdge WebAssembly runtime
@@ -10,7 +10,7 @@ description:
   .
   Features:
   .
-  * Full coverage of the WasmEdge 0.18.x C API
+  * Full coverage of the WasmEdge 0.17.x C API
   * Two-layer design: raw FFI layer + safe idiomatic public API
   * Phantom-typed ownership model — no double-frees or use-after-free
   * @bracket@-style resource management compatible with @MonadUnliftIO@
@@ -18,13 +18,13 @@ description:
     plugins, Tag instances (exception handling), and lazy JIT mode
   * Property-tested with Hedgehog; unit-tested with HSpec
 
-homepage:        https://github.com/your-org/wasmedge-hs
-bug-reports:     https://github.com/your-org/wasmedge-hs/issues
-license:         Apache-2.0
+homepage:        https://github.com/tusharad/wasmedge-hs
+bug-reports:     https://github.com/tusharad/wasmedge-hs/issues
+license:         MIT
 license-file:    LICENSE
-author:          wasmedge-hs contributors
-maintainer:      maintainer@example.com
-copyright:       2026 wasmedge-hs contributors
+author:          Tushar Adhatrao
+maintainer:      tusharadhatrao@gmail.com
+copyright:       2026 Tushar Adhatrao
 category:        WebAssembly, FFI, Language
 build-type:      Simple
 tested-with:
@@ -139,6 +139,7 @@ library
     -- Module instances
     WasmEdge.Module
     WasmEdge.Function
+    WasmEdge.Caller
     WasmEdge.Table
     WasmEdge.Memory
     WasmEdge.Global
@@ -183,6 +184,7 @@ test-suite wasmedge-hs-test
     Test.Unit.ConfigureSpec
     Test.Unit.ValueSpec
     Test.Unit.VMSpec
+    Test.Unit.HostFuncSpec
     Test.Unit.OwnershipSpec
     Test.Property.ValueProp
     Test.Property.StringProp

@@ -1,0 +1,17 @@
+# Stack configuration for wasmedge-hs
+# Snapshot: Stackage Nightly (GHC 9.12.x)
+
+snapshot: nightly
+
+packages:
+  - .
+
+extra-include-dirs:
+  - /opt/homebrew/include
+  - /usr/local/include
+  - /usr/include
+
+extra-lib-dirs:
+  - /opt/homebrew/lib
+  - /usr/local/lib
+  - /usr/lib

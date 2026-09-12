@@ -1,4 +1,18 @@
-.PHONY: lint format format-check docs  clean
+.PHONY: all build test bench lint format format-check docs clean
+
+all: build test
+
+## Build library and executables with Stack
+build:
+	stack build
+
+## Run test suite with Stack
+test:
+	stack test
+
+## Run benchmarks with Stack
+bench:
+	stack bench
 
 ## Run HLint linter
 lint:

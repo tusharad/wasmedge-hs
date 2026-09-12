@@ -1,4 +1,5 @@
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: MIT
+// Copyright (c) 2026 Tushar Adhatrao
 // wasmedge-hs: C shim implementations
 
 #include "wasmedge_hs_shims.h"

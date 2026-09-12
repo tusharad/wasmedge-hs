@@ -15,6 +15,9 @@ module WasmEdge.Statistics
   , setStatCostTable
   , setStatCostLimit
   , clearStatistics
+    -- * Internal / borrowed pointers
+  , unsafeStatisticsPtr
+  , borrowStatistics
   ) where
 
 import Control.Exception           (bracket, throwIO)
@@ -38,7 +41,7 @@ createStatistics = do
     else Statistics <$> mkOwned (appFunPtr c_StatisticsDelete) p
 
 deleteStatistics :: Statistics -> IO ()
-deleteStatistics (Statistics o) = withOwned o (appFunPtr c_StatisticsDelete)
+deleteStatistics (Statistics o) = finalizeOwned o
 
 withStatistics :: (Statistics -> IO a) -> IO a
 withStatistics = bracket createStatistics deleteStatistics
@@ -66,6 +69,14 @@ setStatCostLimit (Statistics o) limit = withOwned o $ \p ->
 
 clearStatistics :: Statistics -> IO ()
 clearStatistics (Statistics o) = withOwned o c_StatisticsClear
+
+-- | Extract the raw pointer of a 'Statistics' context.
+unsafeStatisticsPtr :: Statistics -> IO (Ptr StatisticsTag)
+unsafeStatisticsPtr (Statistics o) = withOwned o pure
+
+-- | Create a borrowed 'Statistics' context from a raw pointer.
+borrowStatistics :: Ptr StatisticsTag -> IO Statistics
+borrowStatistics p = Statistics <$> mkOwned (\_ -> pure ()) p
 
 appFunPtr :: FunPtr (Ptr a -> IO ()) -> Ptr a -> IO ()
 appFunPtr fp p = mkDeleter fp p

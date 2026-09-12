@@ -11,6 +11,7 @@ module WasmEdge.Internal.Utils
     withWasmString
   , fromWasmString
   , peekWasmString
+  , withWasmBytes
     -- * Checked result conversion
   , checkResult
   , throwOnFail
@@ -21,10 +22,13 @@ module WasmEdge.Internal.Utils
 
 import Control.Exception     (throwIO)
 import Data.Text             (Text)
+import qualified Data.Text as T
 import qualified Data.Text.Encoding as TE
 import qualified Data.ByteString    as BS
-import Foreign.C.String      (CString, withCStringLen, peekCStringLen)
-import Foreign.Ptr           (Ptr, nullPtr)
+import qualified Data.ByteString.Unsafe as UBS
+import Foreign.C             (CBool (..))
+import Foreign.C.String      (CString, withCStringLen, peekCString)
+import Foreign.Ptr           (Ptr, nullPtr, castPtr)
 import Foreign.Marshal.Alloc (alloca)
 import Data.Word             (Word32, Word8)
 
@@ -34,6 +38,7 @@ import WasmEdge.Internal.FFI.Basic
   , c_StringDelete
   , c_StringGetBuf
   , c_StringGetLength
+  , c_BytesWrap
   , c_ResultOK
   , c_ResultGetCode
   , c_ResultGetCategory
@@ -72,6 +77,15 @@ peekWasmString strPtr = do
 fromWasmString :: Ptr CString_ -> IO Text
 fromWasmString = peekWasmString
 
+-- | Wrap a 'BS.ByteString' as a stack-allocated 'WasmEdge_Bytes' (zero copy),
+-- call the action, and return its result.
+withWasmBytes :: BS.ByteString -> (Ptr CBytes_ -> IO a) -> IO a
+withWasmBytes bs action =
+  UBS.unsafeUseAsCStringLen bs $ \(buf, len) ->
+    allocaCBytes $ \bytesPtr -> do
+      c_BytesWrap bytesPtr (castPtr buf) (fromIntegral len)
+      action bytesPtr
+
 -- ---------------------------------------------------------------------------
 -- Result checking
 -- ---------------------------------------------------------------------------
@@ -80,8 +94,8 @@ fromWasmString = peekWasmString
 -- or 'Left WasmEdgeError' on failure.
 checkResult :: Ptr CResult_ -> IO (Either WasmEdgeError ())
 checkResult resPtr = do
-  ok <- c_ResultOK resPtr
-  if ok
+  CBool ok <- c_ResultOK resPtr
+  if ok /= 0
     then pure (Right ())
     else do
       code     <- c_ResultGetCode resPtr
@@ -89,8 +103,7 @@ checkResult resPtr = do
       msgPtr   <- c_ResultGetMessage resPtr
       msg      <- if msgPtr == nullPtr
                     then pure "unknown error"
-                    else peekCStringLen (msgPtr, 256) >>= \s ->
-                           pure (TE.decodeUtf8Lenient (BS.pack (map (fromIntegral . fromEnum) s)))
+                    else T.pack <$> peekCString msgPtr
       pure $ Left WasmEdgeError
         { weErrCategory = mkErrCategory category
         , weErrCode     = code

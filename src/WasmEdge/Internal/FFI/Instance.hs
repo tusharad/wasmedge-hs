@@ -88,6 +88,16 @@ module WasmEdge.Internal.FFI.Instance
   , c_ModuleInstanceListMemory
   , c_ModuleInstanceListGlobalLength
   , c_ModuleInstanceListGlobal
+    -- * Limit helper
+  , c_LimitGetInfo
+    -- * TagType (0.18+)
+  , c_TagTypeGetFunctionType
+    -- * TagInstance (0.18+)
+  , c_TagInstanceGetTagType
+    -- * ModuleInstance tag operations
+  , c_ModuleInstanceFindTag
+  , c_ModuleInstanceListTagLength
+  , c_ModuleInstanceListTag
   , c_ModuleInstanceAddFunction
   , c_ModuleInstanceAddTable
   , c_ModuleInstanceAddMemory
@@ -96,7 +106,7 @@ module WasmEdge.Internal.FFI.Instance
 
 import Foreign.C
 import Foreign.Ptr
-import Data.Word (Word32, Word64)
+import Data.Word (Word8, Word32, Word64)
 
 import WasmEdge.Internal.Types
 import WasmEdge.Internal.Storable (CResult_, CValType_, CValue_, CString_)
@@ -121,7 +131,8 @@ type RawHostFuncT
   -> Word32                  -- param_len
   -> Ptr ()                  -- WasmEdge_Value* returns
   -> Word32                  -- return_len
-  -> IO (Ptr CResult_)       -- WasmEdge_Result (allocated by the callback)
+  -> Ptr CResult_            -- WasmEdge_Result* out
+  -> IO ()
 
 -- | Wrap a Haskell 'RawHostFuncT' into a C function pointer.
 -- The returned 'FunPtr' must be freed with 'freeHaskellFunPtr' when
@@ -166,22 +177,19 @@ foreign import ccall unsafe "WasmEdge_FunctionTypeGetReturns"
 -- ---------------------------------------------------------------------------
 
 -- | Create a host function instance.
--- 'safe' because the stored callback will be called back into Haskell.
-foreign import ccall safe "WasmEdge_FunctionInstanceCreate"
-  c_FunctionInstanceCreate :: Ptr FunctionTypeTag
-                             -> FunPtr RawHostFuncT
-                             -> Ptr ()   -- host data
-                             -> Word64   -- cost
-                             -> IO (Ptr FunctionInstanceTag)
-
--- | Create a host function with a binding (wraps arbitrary host data pointer).
-foreign import ccall safe "WasmEdge_FunctionInstanceCreateBinding"
+foreign import ccall safe "hs_WasmEdge_FunctionInstanceCreateBinding"
   c_FunctionInstanceCreateBinding :: Ptr FunctionTypeTag
-                                    -> FunPtr RawHostFuncT
-                                    -> Ptr ()   -- host data
-                                    -> FunPtr (Ptr () -> IO ())  -- finalizer
-                                    -> Word64   -- cost
-                                    -> IO (Ptr FunctionInstanceTag)
+                                  -> FunPtr RawHostFuncT
+                                  -> Ptr ()   -- host data
+                                  -> Word64   -- cost
+                                  -> IO (Ptr FunctionInstanceTag)
+
+foreign import ccall safe "hs_WasmEdge_FunctionInstanceCreateBinding"
+  c_FunctionInstanceCreate :: Ptr FunctionTypeTag
+                           -> FunPtr RawHostFuncT
+                           -> Ptr ()
+                           -> Word64
+                           -> IO (Ptr FunctionInstanceTag)
 
 foreign import ccall unsafe "&WasmEdge_FunctionInstanceDelete"
   c_FunctionInstanceDelete :: FunPtr (Ptr FunctionInstanceTag -> IO ())
@@ -194,19 +202,20 @@ foreign import ccall unsafe "WasmEdge_FunctionInstanceGetFunctionType"
 -- TableType
 -- ---------------------------------------------------------------------------
 
--- | Create a TableType. refType is a Word32 mapping to WasmEdge_RefType.
--- limit_has_max, limit_shared are CBool; min/max are Word32.
-foreign import ccall unsafe "WasmEdge_TableTypeCreate"
+-- | Create a TableType.
+foreign import ccall unsafe "hs_WasmEdge_TableTypeCreate"
   c_TableTypeCreate :: Ptr CValType_  -- ref type (ValType)
-                     -> CBool         -- has max
-                     -> Word32        -- min
-                     -> Word32        -- max (ignored if !hasMax)
-                     -> IO (Ptr TableTypeTag)
+                    -> CBool         -- has max
+                    -> Word64        -- min
+                    -> Word64        -- max
+                    -> CBool         -- shared
+                    -> CBool         -- is64
+                    -> IO (Ptr TableTypeTag)
 
 foreign import ccall unsafe "&WasmEdge_TableTypeDelete"
   c_TableTypeDelete :: FunPtr (Ptr TableTypeTag -> IO ())
 
-foreign import ccall unsafe "WasmEdge_TableTypeGetRefType"
+foreign import ccall unsafe "hs_WasmEdge_TableTypeGetRefType"
   c_TableTypeGetRefType :: Ptr TableTypeTag -> Ptr CValType_ -> IO ()
 
 -- | Get the limit of a table type. Returns (hasMax, min, max).
@@ -251,14 +260,26 @@ foreign import ccall unsafe "hs_WasmEdge_TableInstanceGrow"
 -- MemoryType
 -- ---------------------------------------------------------------------------
 
-foreign import ccall unsafe "WasmEdge_MemoryTypeCreate"
+foreign import ccall unsafe "hs_WasmEdge_MemoryTypeCreate"
   c_MemoryTypeCreate :: CBool   -- has max
-                      -> Word32  -- min pages
-                      -> Word32  -- max pages
+                      -> Word64  -- min pages
+                      -> Word64  -- max pages
+                      -> CBool   -- shared
+                      -> CBool   -- is64
                       -> IO (Ptr MemoryTypeTag)
 
 foreign import ccall unsafe "&WasmEdge_MemoryTypeDelete"
   c_MemoryTypeDelete :: FunPtr (Ptr MemoryTypeTag -> IO ())
+
+-- | Inspect limit info via our C helper
+foreign import ccall unsafe "hs_WasmEdge_LimitGetInfo"
+  c_LimitGetInfo :: Ptr ()
+                 -> Ptr CBool
+                 -> Ptr Word64
+                 -> Ptr Word64
+                 -> Ptr CBool
+                 -> Ptr CBool
+                 -> IO ()
 
 -- Returns an opaque WasmEdge_Limit; inspect via individual getters
 foreign import ccall unsafe "WasmEdge_MemoryTypeGetLimit"
@@ -297,13 +318,13 @@ foreign import ccall unsafe "WasmEdge_MemoryInstanceGetPointer"
   c_MemoryInstanceGetPointer :: Ptr MemoryInstanceTag
                                -> Word32   -- offset
                                -> Word32   -- length
-                               -> IO (Ptr Word32)  -- uint8_t*
+                               -> IO (Ptr Word8)  -- uint8_t*
 
 foreign import ccall unsafe "WasmEdge_MemoryInstanceGetPointerConst"
   c_MemoryInstanceGetPointerConst :: Ptr MemoryInstanceTag
                                     -> Word32
                                     -> Word32
-                                    -> IO (Ptr Word32)
+                                    -> IO (Ptr Word8)
 
 foreign import ccall unsafe "WasmEdge_MemoryInstanceGetPageSize"
   c_MemoryInstanceGetPageSize :: Ptr MemoryInstanceTag -> IO Word32
@@ -315,7 +336,7 @@ foreign import ccall unsafe "hs_WasmEdge_MemoryInstanceGrowPage"
 -- GlobalType
 -- ---------------------------------------------------------------------------
 
-foreign import ccall unsafe "WasmEdge_GlobalTypeCreate"
+foreign import ccall unsafe "hs_WasmEdge_GlobalTypeCreate"
   c_GlobalTypeCreate :: Ptr CValType_  -- val type
                       -> Word32         -- mutability (0=Const, 1=Var)
                       -> IO (Ptr GlobalTypeTag)
@@ -323,7 +344,7 @@ foreign import ccall unsafe "WasmEdge_GlobalTypeCreate"
 foreign import ccall unsafe "&WasmEdge_GlobalTypeDelete"
   c_GlobalTypeDelete :: FunPtr (Ptr GlobalTypeTag -> IO ())
 
-foreign import ccall unsafe "WasmEdge_GlobalTypeGetValType"
+foreign import ccall unsafe "hs_WasmEdge_GlobalTypeGetValType"
   c_GlobalTypeGetValType :: Ptr GlobalTypeTag -> Ptr CValType_ -> IO ()
 
 foreign import ccall unsafe "WasmEdge_GlobalTypeGetMutability"
@@ -333,7 +354,7 @@ foreign import ccall unsafe "WasmEdge_GlobalTypeGetMutability"
 -- GlobalInstance
 -- ---------------------------------------------------------------------------
 
-foreign import ccall unsafe "WasmEdge_GlobalInstanceCreate"
+foreign import ccall unsafe "hs_WasmEdge_GlobalInstanceCreate"
   c_GlobalInstanceCreate :: Ptr GlobalTypeTag -> Ptr CValue_ -> IO (Ptr GlobalInstanceTag)
 
 foreign import ccall unsafe "&WasmEdge_GlobalInstanceDelete"
@@ -365,11 +386,11 @@ foreign import ccall unsafe "WasmEdge_CallingFrameGetMemoryInstance"
 -- ModuleInstance
 -- ---------------------------------------------------------------------------
 
-foreign import ccall unsafe "WasmEdge_ModuleInstanceCreate"
+foreign import ccall unsafe "hs_WasmEdge_ModuleInstanceCreate"
   c_ModuleInstanceCreate :: Ptr CString_ -> IO (Ptr ModuleInstanceTag)
 
 -- | Create with host data and a finalizer for the data.
-foreign import ccall unsafe "WasmEdge_ModuleInstanceCreateWithData"
+foreign import ccall unsafe "hs_WasmEdge_ModuleInstanceCreateWithData"
   c_ModuleInstanceCreateWithData :: Ptr CString_
                                    -> Ptr ()    -- host data
                                    -> FunPtr (Ptr () -> IO ())  -- finalizer
@@ -409,22 +430,22 @@ foreign import ccall unsafe "WasmEdge_ModuleInstanceWASIGetNativeHandler"
 foreign import ccall unsafe "hs_WasmEdge_ModuleInstanceGetModuleName"
   c_ModuleInstanceGetModuleName :: Ptr CString_ -> Ptr ModuleInstanceTag -> IO ()
 
-foreign import ccall unsafe "WasmEdge_ModuleInstanceFindFunction"
+foreign import ccall unsafe "hs_WasmEdge_ModuleInstanceFindFunction"
   c_ModuleInstanceFindFunction :: Ptr ModuleInstanceTag
                                  -> Ptr CString_
                                  -> IO (Ptr FunctionInstanceTag)
 
-foreign import ccall unsafe "WasmEdge_ModuleInstanceFindTable"
+foreign import ccall unsafe "hs_WasmEdge_ModuleInstanceFindTable"
   c_ModuleInstanceFindTable :: Ptr ModuleInstanceTag
                               -> Ptr CString_
                               -> IO (Ptr TableInstanceTag)
 
-foreign import ccall unsafe "WasmEdge_ModuleInstanceFindMemory"
+foreign import ccall unsafe "hs_WasmEdge_ModuleInstanceFindMemory"
   c_ModuleInstanceFindMemory :: Ptr ModuleInstanceTag
                                -> Ptr CString_
                                -> IO (Ptr MemoryInstanceTag)
 
-foreign import ccall unsafe "WasmEdge_ModuleInstanceFindGlobal"
+foreign import ccall unsafe "hs_WasmEdge_ModuleInstanceFindGlobal"
   c_ModuleInstanceFindGlobal :: Ptr ModuleInstanceTag
                                -> Ptr CString_
                                -> IO (Ptr GlobalInstanceTag)
@@ -465,31 +486,51 @@ foreign import ccall unsafe "WasmEdge_ModuleInstanceListGlobal"
                                 -> Word32
                                 -> IO Word32
 
--- | Add a FunctionInstance to a ModuleInstance (0.18+: returns Result).
+-- | Add a FunctionInstance to a ModuleInstance (moves ownership into module).
 foreign import ccall unsafe "hs_WasmEdge_ModuleInstanceAddFunction"
-  c_ModuleInstanceAddFunction :: Ptr CResult_
-                                -> Ptr ModuleInstanceTag
-                                -> Ptr CString_
-                                -> Ptr FunctionInstanceTag
-                                -> IO ()
-
-foreign import ccall unsafe "hs_WasmEdge_ModuleInstanceAddTable"
-  c_ModuleInstanceAddTable :: Ptr CResult_
-                              -> Ptr ModuleInstanceTag
+  c_ModuleInstanceAddFunction :: Ptr ModuleInstanceTag
                               -> Ptr CString_
-                              -> Ptr TableInstanceTag
+                              -> Ptr FunctionInstanceTag
                               -> IO ()
 
+foreign import ccall unsafe "hs_WasmEdge_ModuleInstanceAddTable"
+  c_ModuleInstanceAddTable :: Ptr ModuleInstanceTag
+                           -> Ptr CString_
+                           -> Ptr TableInstanceTag
+                           -> IO ()
+
 foreign import ccall unsafe "hs_WasmEdge_ModuleInstanceAddMemory"
-  c_ModuleInstanceAddMemory :: Ptr CResult_
-                               -> Ptr ModuleInstanceTag
-                               -> Ptr CString_
-                               -> Ptr MemoryInstanceTag
-                               -> IO ()
+  c_ModuleInstanceAddMemory :: Ptr ModuleInstanceTag
+                            -> Ptr CString_
+                            -> Ptr MemoryInstanceTag
+                            -> IO ()
 
 foreign import ccall unsafe "hs_WasmEdge_ModuleInstanceAddGlobal"
-  c_ModuleInstanceAddGlobal :: Ptr CResult_
-                               -> Ptr ModuleInstanceTag
-                               -> Ptr CString_
-                               -> Ptr GlobalInstanceTag
-                               -> IO ()
+  c_ModuleInstanceAddGlobal :: Ptr ModuleInstanceTag
+                            -> Ptr CString_
+                            -> Ptr GlobalInstanceTag
+                            -> IO ()
+
+-- ---------------------------------------------------------------------------
+-- TagType & TagInstance (0.18+)
+-- ---------------------------------------------------------------------------
+
+foreign import ccall unsafe "WasmEdge_TagInstanceGetTagType"
+  c_TagInstanceGetTagType :: Ptr TagInstanceTag -> IO (Ptr TagTypeTag)
+
+foreign import ccall unsafe "WasmEdge_TagTypeGetFunctionType"
+  c_TagTypeGetFunctionType :: Ptr TagTypeTag -> IO (Ptr FunctionTypeTag)
+
+foreign import ccall unsafe "hs_WasmEdge_ModuleInstanceFindTag"
+  c_ModuleInstanceFindTag :: Ptr ModuleInstanceTag
+                          -> Ptr CString_
+                          -> IO (Ptr TagInstanceTag)
+
+foreign import ccall unsafe "WasmEdge_ModuleInstanceListTagLength"
+  c_ModuleInstanceListTagLength :: Ptr ModuleInstanceTag -> IO Word32
+
+foreign import ccall unsafe "WasmEdge_ModuleInstanceListTag"
+  c_ModuleInstanceListTag :: Ptr ModuleInstanceTag
+                          -> Ptr CString_
+                          -> Word32
+                          -> IO Word32

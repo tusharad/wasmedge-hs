@@ -105,7 +105,7 @@ library
 
   if flag(static)
     extra-libraries: wasmedge
-    ld-options:      -Wl,-Bstatic -lwasmedge -Wl,-Bdynamic
+    ghc-options:     -optl-static
   else
     extra-libraries: wasmedge
 
@@ -118,6 +118,7 @@ library
     , containers        >= 0.6    && < 0.8
     , unliftio-core     >= 0.2    && < 0.3
     , resourcet         >= 1.3    && < 1.4
+    , deepseq           >= 1.4    && < 1.6
 
   exposed-modules:
     -- Top-level convenience re-export
@@ -150,9 +151,7 @@ library
     WasmEdge.Async
     -- Plugins
     WasmEdge.Plugin
-
-  other-modules:
-    -- Internal FFI layer (not for public use)
+    -- Internal modules (exposed for testing and advanced use; unstable API)
     WasmEdge.Internal.Types
     WasmEdge.Internal.Ownership
     WasmEdge.Internal.Storable
@@ -214,5 +213,48 @@ benchmark wasmedge-hs-bench
       wasmedge-hs
     , base
     , criterion          >= 1.6   && < 1.7
+    , deepseq
     , bytestring
+    , text
+
+-- -------------------------------------------------------------------------
+-- Examples
+-- -------------------------------------------------------------------------
+
+executable wasmedge-hs-example-hello
+  import:          defaults
+  hs-source-dirs:  examples
+  main-is:         Hello.hs
+  build-depends:
+      wasmedge-hs
+    , base
+    , bytestring
+
+executable wasmedge-hs-example-hostfunc
+  import:          defaults
+  hs-source-dirs:  examples
+  main-is:         HostFunc.hs
+  build-depends:
+      wasmedge-hs
+    , base
+    , bytestring
+
+executable wasmedge-hs-example-aot
+  import:          defaults
+  hs-source-dirs:  examples
+  main-is:         AOTCompile.hs
+  build-depends:
+      wasmedge-hs
+    , base
+    , bytestring
+    , filepath
+    , temporary
+
+executable wasmedge-hs-example-plugin
+  import:          defaults
+  hs-source-dirs:  examples
+  main-is:         Plugin.hs
+  build-depends:
+      wasmedge-hs
+    , base
     , text

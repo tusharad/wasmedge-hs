@@ -17,6 +17,8 @@ module WasmEdge.Internal.Storable
   , allocaCString
   , peekCStringBuf
   , peekCStringLen
+  , cStringSize
+  , stringSize
     -- * WasmEdge_Bytes layout
   , CBytes_ (..)
   , allocaCBytes
@@ -60,6 +62,9 @@ allocaCString action = allocaBytes cStringSize action
 -- We use hsc2hs for the real layout; for now use a conservative 16 bytes.
 cStringSize :: Int
 cStringSize = 16  -- overridden by hsc2hs #size WasmEdge_String at compile time
+
+stringSize :: Int
+stringSize = cStringSize
 
 -- | Peek the buffer pointer from a 'WasmEdge_String'.
 peekCStringBuf :: Ptr CString_ -> IO (Ptr Word8)
@@ -112,14 +117,14 @@ withCValTypeArray n action = allocaBytes (n * valTypeSize) action
 
 -- ---------------------------------------------------------------------------
 -- WasmEdge_Value  (uint128_t Value; WasmEdge_ValType Type)
--- = 16 bytes (uint128) + 8 bytes (ValType) = 24 bytes
+-- = 16 bytes (uint128) + 8 bytes (ValType) + 8 bytes (alignment padding) = 32 bytes
 -- ---------------------------------------------------------------------------
 
 -- | Opaque placeholder for the 'WasmEdge_Value' C struct.
 data CValue_
 
 valueSize :: Int
-valueSize = 24
+valueSize = 32
 
 allocaCValue :: (Ptr CValue_ -> IO a) -> IO a
 allocaCValue = allocaBytes valueSize

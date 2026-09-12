@@ -165,7 +165,7 @@ foreign import ccall unsafe "WasmEdge_StoreCreate"
 foreign import ccall unsafe "&WasmEdge_StoreDelete"
   c_StoreDelete :: FunPtr (Ptr StoreTag -> IO ())
 
-foreign import ccall unsafe "WasmEdge_StoreFindModule"
+foreign import ccall unsafe "hs_WasmEdge_StoreFindModule"
   c_StoreFindModule :: Ptr StoreTag -> Ptr CString_ -> IO (Ptr ModuleInstanceTag)
 
 foreign import ccall unsafe "WasmEdge_StoreListModuleLength"

@@ -109,11 +109,11 @@ foreign import ccall unsafe "WasmEdge_ConfigureSetForceInterpreter"
 foreign import ccall unsafe "WasmEdge_ConfigureIsForceInterpreter"
   c_ConfigureIsForceInterpreter :: Ptr ConfigureTag -> IO CBool
 
--- Run mode (0.18+: Interpreter / AOT / LazyJIT)
-foreign import ccall unsafe "WasmEdge_ConfigureSetRunningMode"
+-- Run mode (Interpreter / AOT / LazyJIT)
+foreign import ccall unsafe "WasmEdge_ConfigureSetRunMode"
   c_ConfigureSetRunningMode :: Ptr ConfigureTag -> Word32 -> IO ()
 
-foreign import ccall unsafe "WasmEdge_ConfigureGetRunningMode"
+foreign import ccall unsafe "WasmEdge_ConfigureGetRunMode"
   c_ConfigureGetRunningMode :: Ptr ConfigureTag -> IO Word32
 
 -- Compiler options

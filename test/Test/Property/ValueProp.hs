@@ -3,7 +3,6 @@ module Test.Property.ValueProp (spec) where
 
 import Test.Hspec
 import Test.Hspec.Hedgehog
-import Hedgehog
 import qualified Hedgehog.Gen   as Gen
 import qualified Hedgehog.Range as Range
 import Data.Int (Int32, Int64)
@@ -35,20 +34,20 @@ genF64 = Gen.double (Range.constant (-1e15) 1e15)
 -- Properties
 -- ---------------------------------------------------------------------------
 
-prop_i32_roundtrip :: Property
-prop_i32_roundtrip = property $ do
+prop_i32_roundtrip :: PropertyT IO ()
+prop_i32_roundtrip = do
   v <- forAll genI32
   result <- evalIO $ encodeVal (WasmI32 v) decodeVal
   result === WasmI32 v
 
-prop_i64_roundtrip :: Property
-prop_i64_roundtrip = property $ do
+prop_i64_roundtrip :: PropertyT IO ()
+prop_i64_roundtrip = do
   v <- forAll genI64
   result <- evalIO $ encodeVal (WasmI64 v) decodeVal
   result === WasmI64 v
 
-prop_f64_roundtrip :: Property
-prop_f64_roundtrip = property $ do
+prop_f64_roundtrip :: PropertyT IO ()
+prop_f64_roundtrip = do
   v <- forAll genF64
   result <- evalIO $ encodeVal (WasmF64 v) decodeVal
   case result of

@@ -3,13 +3,13 @@ module Test.Unit.ValueSpec (spec) where
 
 import Test.Hspec
 import Data.Int  (Int32, Int64)
-import Foreign.C (CBool (..), CFloat (..), CDouble (..))
+import Foreign.C (CBool (..))
 import Foreign.Marshal.Alloc (allocaBytes)
 import Foreign.Ptr
 
 import WasmEdge.Types
 import WasmEdge.Value
-import WasmEdge.Internal.Storable (allocaCValue, CValue_)
+import WasmEdge.Internal.Storable (allocaCValue, CValType_)
 import WasmEdge.Internal.FFI.Value
 
 spec :: Spec
@@ -92,5 +92,3 @@ roundtripF64 v = do
 
 encodeDecodeVal :: WasmVal -> IO WasmVal
 encodeDecodeVal val = encodeVal val decodeVal
-
-import WasmEdge.Internal.Storable (CValType_)

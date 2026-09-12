@@ -1,3 +1,4 @@
+{-# LANGUAGE MultiWayIf #-}
 -- |
 -- Module      : WasmEdge.Value
 -- Description : Conversion between Haskell 'WasmVal' and WasmEdge C values
@@ -16,6 +17,8 @@ module WasmEdge.Value
   , decodeVal
   , withValArray
   , peekValArray
+  , withCValueArray
+  , valueSize
     -- * ValType conversion
   , encodeValType
   , withValTypeArray
@@ -29,6 +32,7 @@ import Data.WideWord.Int128 (Int128 (..))
 import Foreign.C        (CFloat (..), CDouble (..), CBool (..))
 import Foreign.Marshal.Alloc (allocaBytes)
 import Foreign.Marshal.Array (allocaArray, peekArray)
+import Foreign.Marshal.Utils (copyBytes)
 import Foreign.Ptr
 import Foreign.Storable
 
@@ -105,10 +109,10 @@ encodeVal val action = allocaCValue $ \p -> do
     WasmF64 v           -> c_ValueGenF64 p (CDouble v)
     WasmV128 (Int128 hi lo) -> c_ValueGenV128 p (fromIntegral hi) (fromIntegral lo)
     WasmFuncRef Nothing  -> c_ValueGenNullFuncRef   p
-    WasmFuncRef (Just (FuncRef fp)) ->
+    WasmFuncRef (Just (FuncRefPtr fp)) ->
       c_ValueGenFuncRef p (castPtr fp)
     WasmExternRef Nothing  -> c_ValueGenNullExternRef p
-    WasmExternRef (Just (ExternRef rp)) ->
+    WasmExternRef (Just (ExternRefPtr rp)) ->
       c_ValueGenExternRef p rp
   action p
 
@@ -144,14 +148,14 @@ decodeVal p = do
              then pure (WasmFuncRef Nothing)
              else do
                fp <- c_ValueGetFuncRef p
-               pure $ WasmFuncRef (Just (FuncRef (castPtr fp)))
+               pure $ WasmFuncRef (Just (FuncRefPtr (castPtr fp)))
        | toBool isER -> do
            isNull <- c_ValueIsNullRef p
            if toBool isNull
              then pure (WasmExternRef Nothing)
              else do
                rp <- c_ValueGetExternRef p
-               pure $ WasmExternRef (Just (ExternRef rp))
+               pure $ WasmExternRef (Just (ExternRefPtr rp))
        | otherwise -> pure (WasmI32 0)  -- should not happen
 
 -- | Encode a '[WasmVal]' into a C array and pass the array to the action.
@@ -168,7 +172,7 @@ withValArray vals action =
 peekValArray :: Ptr () -> Word32 -> IO [WasmVal]
 peekValArray arr n =
   forM [0 .. fromIntegral n - 1] $ \i ->
-    decodeVal (arr `plusPtr` (i * valueSize) `castPtr` castPtr arr `plusPtr` (i * valueSize))
+    decodeVal (castPtr (arr `plusPtr` (i * valueSize)))
 
 -- Helper since GHC imports are needed
 foreign import ccall unsafe "malloc" malloc :: IO (Ptr a)

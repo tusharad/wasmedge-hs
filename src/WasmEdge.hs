@@ -37,6 +37,7 @@ module WasmEdge
   , WasmEdgeError (..)
   , WasmResult
   , ErrCategory (..)
+  , formatError
     -- * Version
   , version
   , versionMajor
@@ -55,6 +56,7 @@ module WasmEdge
   ) where
 
 import Data.Text        (Text)
+import qualified Data.Text as T
 import Foreign.C        (peekCString)
 import Data.Word        (Word32)
 
@@ -73,10 +75,7 @@ version :: IO Text
 version = do
   cs <- c_VersionGet
   str <- peekCString cs
-  pure (fromString str)
-  where
-    fromString = Data.Text.pack
-    Data.Text.pack = id  -- placeholder, use real Data.Text
+  pure (T.pack str)
 
 -- | Major version number.
 versionMajor :: IO Word32

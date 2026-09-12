@@ -40,6 +40,7 @@ import Data.Word   (Word32, Word64)
 import Data.WideWord.Int128 (Int128)
 import Foreign.Ptr (Ptr)
 import GHC.Generics (Generic)
+import Control.DeepSeq (NFData)
 
 -- ---------------------------------------------------------------------------
 -- WasmVal
@@ -47,15 +48,17 @@ import GHC.Generics (Generic)
 
 -- | An opaque reference to a WasmEdge FunctionInstance.
 -- Obtained via 'WasmEdge.Function.getFuncRef' or from a 'WasmVal'.
-newtype FuncRef = FuncRef { funcRefPtr :: Ptr () }
-  deriving stock (Eq)
+newtype FuncRef = FuncRefPtr { funcRefPtr :: Ptr () }
+  deriving stock (Eq, Generic)
   deriving newtype (Show)
+  deriving anyclass (NFData)
 
 -- | An opaque reference to an external (host) object.
 -- Created via 'WasmEdge.Function.mkExternRef'.
-newtype ExternRef = ExternRef { externRefPtr :: Ptr () }
-  deriving stock (Eq)
+newtype ExternRef = ExternRefPtr { externRefPtr :: Ptr () }
+  deriving stock (Eq, Generic)
   deriving newtype (Show)
+  deriving anyclass (NFData)
 
 -- | A WebAssembly value, covering all WASM numeric and reference types.
 --
@@ -75,7 +78,8 @@ data WasmVal
     -- ^ Function reference (nullable). 'Nothing' is a null funcref.
   | WasmExternRef !(Maybe ExternRef)
     -- ^ External reference (nullable). 'Nothing' is a null externref.
-  deriving stock (Show, Eq)
+  deriving stock (Show, Eq, Generic)
+  deriving anyclass (NFData)
 
 -- ---------------------------------------------------------------------------
 -- ValType
@@ -92,6 +96,7 @@ data ValType
   | FuncRef    -- ^ Function reference
   | ExternRef  -- ^ External reference
   deriving stock (Show, Eq, Ord, Bounded, Enum, Generic)
+  deriving anyclass (NFData)
 
 -- ---------------------------------------------------------------------------
 -- Limit
@@ -104,6 +109,7 @@ data Limit = Limit
   , limitShared :: !Bool   -- ^ True for shared (threads proposal) memories
   }
   deriving stock (Show, Eq, Generic)
+  deriving anyclass (NFData)
 
 -- | An unlimited limit (no max, not shared).
 unlimitedLimit :: Word32 -> Limit
@@ -118,6 +124,7 @@ data Mutability
   = Const  -- ^ Immutable global
   | Var    -- ^ Mutable global
   deriving stock (Show, Eq, Ord, Bounded, Enum, Generic)
+  deriving anyclass (NFData)
 
 -- ---------------------------------------------------------------------------
 -- ExternalType
@@ -131,6 +138,7 @@ data ExternalType
   | ExternalGlobal
   | ExternalTag   -- ^ 0.18+: exception tag (exception handling proposal)
   deriving stock (Show, Eq, Ord, Bounded, Enum, Generic)
+  deriving anyclass (NFData)
 
 -- ---------------------------------------------------------------------------
 -- Proposal
@@ -138,45 +146,30 @@ data ExternalType
 
 -- | WebAssembly proposals that can be enabled in 'WasmEdge.Configure.Configure'.
 data Proposal
-  = ImportExportMutGlobals       -- ^ Import/export mutable globals
-  | NonTrapFloatToIntConversions -- ^ Non-trap float-to-int conversions
-  | SignExtensionOperators       -- ^ Sign-extension operators
-  | MultiValue                   -- ^ Multiple return values
-  | BulkMemoryOperations         -- ^ Bulk memory operations
-  | ReferenceTypes               -- ^ Reference types
-  | SIMD                         -- ^ SIMD (fixed-width)
-  | TailCall                     -- ^ Tail call optimization
-  | Annotations                  -- ^ Custom section annotations
-  | Memory64                     -- ^ 64-bit memory indices
-  | ExceptionHandling            -- ^ Exception handling
-  | ExtendedConst                -- ^ Extended constant expressions
-  | Threads                      -- ^ Threads (shared memory + atomics)
-  | FunctionReferences           -- ^ Typed function references
-  | GC                           -- ^ Garbage collection
-  | RelaxedSIMD                  -- ^ Relaxed SIMD
-  | ComponentModel               -- ^ Component model
+  = ImportExportMutGlobals       -- ^ 0: Import/export mutable globals
+  | NonTrapFloatToIntConversions -- ^ 1: Non-trap float-to-int conversions
+  | SignExtensionOperators       -- ^ 2: Sign-extension operators
+  | MultiValue                   -- ^ 3: Multiple return values
+  | BulkMemoryOperations         -- ^ 4: Bulk memory operations
+  | ReferenceTypes               -- ^ 5: Reference types
+  | SIMD                         -- ^ 6: SIMD (fixed-width)
+  | TailCall                     -- ^ 7: Tail call optimization
+  | ExtendedConst                -- ^ 8: Extended constant expressions
+  | FunctionReferences           -- ^ 9: Typed function references
+  | GC                           -- ^ 10: Garbage collection
+  | MultiMemories                -- ^ 11: Multiple memories
+  | RelaxedSIMD                  -- ^ 12: Relaxed SIMD
+  | Annotations                  -- ^ 13: Custom section annotations
+  | ExceptionHandling            -- ^ 14: Exception handling
+  | Memory64                     -- ^ 15: 64-bit memory indices
+  | Threads                      -- ^ 16: Threads (shared memory + atomics)
+  | ComponentModel               -- ^ 17: Component model
   deriving stock (Show, Eq, Ord, Bounded, Enum, Generic)
+  deriving anyclass (NFData)
 
 -- | The integer value sent to the C API for each proposal.
 proposalToC :: Proposal -> Word32
-proposalToC = \case
-  ImportExportMutGlobals       -> 0
-  NonTrapFloatToIntConversions -> 1
-  SignExtensionOperators       -> 2
-  MultiValue                   -> 3
-  BulkMemoryOperations         -> 4
-  ReferenceTypes               -> 5
-  SIMD                         -> 6
-  TailCall                     -> 7
-  Annotations                  -> 8
-  Memory64                     -> 9
-  ExceptionHandling            -> 10
-  ExtendedConst                -> 11
-  Threads                      -> 12
-  FunctionReferences           -> 13
-  GC                           -> 14
-  RelaxedSIMD                  -> 15
-  ComponentModel               -> 16
+proposalToC = fromIntegral . fromEnum
 
 -- ---------------------------------------------------------------------------
 -- WasmStandard
@@ -188,6 +181,7 @@ data WasmStandard
   | WASM2   -- ^ WASM 2.0
   | WASM3   -- ^ WASM 3.0 (includes tail-call, extended-const, function refs, GC, EH, ...)
   deriving stock (Show, Eq, Ord, Bounded, Enum, Generic)
+  deriving anyclass (NFData)
 
 wasmStandardToC :: WasmStandard -> Word32
 wasmStandardToC = \case
@@ -204,6 +198,7 @@ data HostRegistration
   = HostWASI              -- ^ Register the WASI module
   | HostWasmEdgeProcess   -- ^ Register wasmedge_process (deprecated 0.18)
   deriving stock (Show, Eq, Ord, Bounded, Enum, Generic)
+  deriving anyclass (NFData)
 
 hostRegistrationToC :: HostRegistration -> Word32
 hostRegistrationToC = \case
@@ -220,6 +215,7 @@ data RunMode
   | RunModeAOT          -- ^ AOT compiled (requires compiled binary)
   | RunModeLazyJIT      -- ^ Lazy JIT: compile on first function call (0.18+)
   deriving stock (Show, Eq, Ord, Bounded, Enum, Generic)
+  deriving anyclass (NFData)
 
 runModeToC :: RunMode -> Word32
 runModeToC = \case
@@ -240,6 +236,7 @@ data OptimizationLevel
   | OptOs  -- ^ Optimize for size
   | OptOz  -- ^ Aggressive size optimization
   deriving stock (Show, Eq, Ord, Bounded, Enum, Generic)
+  deriving anyclass (NFData)
 
 -- ---------------------------------------------------------------------------
 -- OutputFormat
@@ -250,3 +247,4 @@ data OutputFormat
   = OutputNativeSharedLibrary  -- ^ Platform native shared library
   | OutputWasmUniversal        -- ^ Universal WASM (embeds native + bytecode)
   deriving stock (Show, Eq, Ord, Bounded, Enum, Generic)
+  deriving anyclass (NFData)

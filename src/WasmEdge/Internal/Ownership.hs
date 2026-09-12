@@ -22,6 +22,8 @@ module WasmEdge.Internal.Ownership
   , mkOwned
   , withOwned
   , touchOwned
+  , finalizeOwned
+  , disarmOwned
     -- * Borrowed contexts (no ownership, no finalizer)
   , BorrowedCtx (..)
   , borrowCtx
@@ -31,9 +33,11 @@ module WasmEdge.Internal.Ownership
   , unsafeOwnedPtr
   ) where
 
+import Control.Monad        (unless)
+import Data.IORef           (newIORef, readIORef, writeIORef)
 import Foreign.Ptr          (Ptr, nullPtr)
-import Foreign.ForeignPtr   (ForeignPtr, newForeignPtr, withForeignPtr,
-                              touchForeignPtr, unsafeForeignPtrToPtr)
+import Foreign.ForeignPtr   (ForeignPtr, newForeignPtr_, withForeignPtr, touchForeignPtr, finalizeForeignPtr)
+import Foreign.ForeignPtr.Unsafe (unsafeForeignPtrToPtr)
 import qualified Foreign.Concurrent as FC
 
 -- ---------------------------------------------------------------------------
@@ -45,12 +49,17 @@ import qualified Foreign.Concurrent as FC
 --
 -- The finalizer is called exactly once, either when:
 --
---   1. The explicit @delete*@ function is called (via 'withOwned'), or
+--   1. The explicit @delete*@ function is called (via 'finalizeOwned'), or
 --   2. The 'ForeignPtr' is garbage-collected.
 --
 -- In practice, prefer explicit cleanup with @with*@ bracket functions.
-newtype OwnedCtx tag = OwnedCtx { unOwnedCtx :: ForeignPtr tag }
-  deriving stock (Eq)
+data OwnedCtx tag = OwnedCtx
+  { unOwnedCtx   :: !(ForeignPtr tag)
+  , disarmAction :: !(IO ())
+  }
+
+instance Eq (OwnedCtx tag) where
+  OwnedCtx fp1 _ == OwnedCtx fp2 _ = fp1 == fp2
 
 -- | Create an 'OwnedCtx' from a raw 'Ptr' and an IO action to call when
 -- the pointer is no longer needed (the delete function).
@@ -62,24 +71,39 @@ mkOwned :: (Ptr tag -> IO ()) -- ^ delete / finalize action
         -> IO (OwnedCtx tag)
 mkOwned finalizer ptr
   | ptr == nullPtr = do
-      fp <- newForeignPtr (error "mkOwned: null delete fn") ptr
-      pure (OwnedCtx fp)
+      fp <- newForeignPtr_ ptr
+      pure (OwnedCtx fp (pure ()))
   | otherwise = do
-      fp <- FC.newForeignPtr ptr (finalizer ptr)
-      pure (OwnedCtx fp)
+      disarmedRef <- newIORef False
+      fp <- FC.newForeignPtr ptr $ do
+        disarmed <- readIORef disarmedRef
+        unless disarmed (finalizer ptr)
+      pure (OwnedCtx fp (writeIORef disarmedRef True))
 
 -- | Run an IO action with the underlying 'Ptr' of an 'OwnedCtx'.
 -- The 'OwnedCtx' is kept alive for the duration of the action.
 withOwned :: OwnedCtx tag -> (Ptr tag -> IO a) -> IO a
-withOwned (OwnedCtx fp) = withForeignPtr fp
+withOwned (OwnedCtx fp _) = withForeignPtr fp
 {-# INLINE withOwned #-}
 
 -- | Ensure an 'OwnedCtx' is kept alive up to this point in a sequence of
 -- IO actions. Use when passing the underlying pointer to a C function that
 -- does not keep a reference, and you need GHC not to collect the object early.
 touchOwned :: OwnedCtx tag -> IO ()
-touchOwned (OwnedCtx fp) = touchForeignPtr fp
+touchOwned (OwnedCtx fp _) = touchForeignPtr fp
 {-# INLINE touchOwned #-}
+
+-- | Explicitly finalize an 'OwnedCtx', running its cleanup action immediately
+-- and disabling future GC finalization.
+finalizeOwned :: OwnedCtx tag -> IO ()
+finalizeOwned (OwnedCtx fp _) = finalizeForeignPtr fp
+{-# INLINE finalizeOwned #-}
+
+-- | Disarm the finalizer of an 'OwnedCtx' when ownership has been transferred
+-- to a C container (e.g. adding a function/table/memory/global to a ModuleInstance).
+disarmOwned :: OwnedCtx tag -> IO ()
+disarmOwned (OwnedCtx _ act) = act
+{-# INLINE disarmOwned #-}
 
 -- ---------------------------------------------------------------------------
 -- BorrowedCtx
@@ -94,7 +118,7 @@ newtype BorrowedCtx tag = BorrowedCtx { unBorrowedCtx :: Ptr tag }
 -- | Borrow an 'OwnedCtx': extract a non-owning 'BorrowedCtx'.
 -- The 'OwnedCtx' must remain alive as long as the 'BorrowedCtx' is used.
 borrowCtx :: OwnedCtx tag -> BorrowedCtx tag
-borrowCtx (OwnedCtx fp) = BorrowedCtx (unsafeForeignPtrToPtr fp)
+borrowCtx (OwnedCtx fp _) = BorrowedCtx (unsafeForeignPtrToPtr fp)
 {-# INLINE borrowCtx #-}
 
 -- | Run an IO action with the underlying 'Ptr' of a 'BorrowedCtx'.
@@ -115,5 +139,5 @@ unsafeBorrowOwned = borrowCtx
 -- | /Unsafe/: extract the raw 'Ptr' from an 'OwnedCtx'.
 -- The 'ForeignPtr' may be GC'd after this call.
 unsafeOwnedPtr :: OwnedCtx tag -> Ptr tag
-unsafeOwnedPtr (OwnedCtx fp) = unsafeForeignPtrToPtr fp
+unsafeOwnedPtr (OwnedCtx fp _) = unsafeForeignPtrToPtr fp
 {-# INLINE unsafeOwnedPtr #-}

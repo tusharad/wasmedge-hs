@@ -6,9 +6,9 @@ packages: .
 -- Allow newer versions during development; pin for releases
 -- constraints:
 
--- WasmEdge library search path — set this if WasmEdge is not in /usr/local
--- extra-lib-dirs: /opt/wasmedge/lib
--- extra-include-dirs: /opt/wasmedge/include
+-- WasmEdge library search path
+extra-lib-dirs: /opt/homebrew/lib
+extra-include-dirs: /opt/homebrew/include
 
 optimization: 1
 tests: True

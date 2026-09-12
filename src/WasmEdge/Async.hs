@@ -8,7 +8,7 @@
 -- When functions are invoked via @async*@ variants in 'WasmEdge.VM' or
 -- 'WasmEdge.Executor', they return an 'Async' handle that can be waited on.
 module WasmEdge.Async
-  ( Async
+  ( Async (..)
   , wait
   , waitFor
   , cancel
@@ -16,6 +16,7 @@ module WasmEdge.Async
   , getReturns
   -- Internal
   , mkAsync
+  , borrowAsync
   ) where
 
 import Control.Exception        (throwIO)
@@ -40,6 +41,10 @@ mkAsync :: Ptr AsyncTag -> IO Async
 mkAsync p
   | p == nullPtr = throwIO $ WasmEdgeError ErrCategory_WASM 0 "Async returned NULL"
   | otherwise    = Async <$> mkOwned (appFunPtr c_AsyncDelete) p
+
+-- | Create a borrowed 'Async' handle from a raw pointer (does not finalize).
+borrowAsync :: Ptr AsyncTag -> IO Async
+borrowAsync p = Async <$> mkOwned (\_ -> pure ()) p
 
 -- | Block until the async result is ready.
 wait :: Async -> IO ()
@@ -70,19 +75,7 @@ getReturns (Async o) = withOwned o $ \aPtr -> do
       case r of
         Left err -> pure (Left err)
         Right () -> Right <$> peekValArray (castPtr retsPtr) n
-  where
-    withCValueArray 0 f = f nullPtr
-    withCValueArray n f = allocaBytes (n * 24) f
 
 appFunPtr :: FunPtr (Ptr a -> IO ()) -> Ptr a -> IO ()
 appFunPtr fp p = mkDeleter fp p
 foreign import ccall "dynamic" mkDeleter :: FunPtr (Ptr a -> IO ()) -> Ptr a -> IO ()
-foreign import ccall "malloc" mallocBytes :: Int -> IO (Ptr ())
-foreign import ccall "free" freeBytes :: Ptr () -> IO ()
-
-allocaBytes :: Int -> (Ptr a -> IO b) -> IO b
-allocaBytes n f = do
-  p <- mallocBytes n
-  r <- f (castPtr p)
-  freeBytes p
-  pure r

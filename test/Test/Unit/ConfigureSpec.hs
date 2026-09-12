@@ -12,15 +12,15 @@ spec = describe "WasmEdge Configure" $ do
     withConfigure $ \_ -> pure ()
 
   describe "Proposals" $ do
-    it "SIMD not enabled by default" $
+    it "Threads not enabled by default" $
       withConfigure $ \cfg -> do
-        r <- hasProposal cfg SIMD
+        r <- hasProposal cfg Threads
         r `shouldBe` False
 
-    it "adds and has SIMD" $
+    it "adds and has Threads" $
       withConfigure $ \cfg -> do
-        addProposal cfg SIMD
-        r <- hasProposal cfg SIMD
+        addProposal cfg Threads
+        r <- hasProposal cfg Threads
         r `shouldBe` True
 
     it "removes a proposal" $

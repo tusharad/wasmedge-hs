@@ -25,9 +25,9 @@ spec = describe "WasmEdge version" $ do
     major <- c_VersionGetMajor
     major `shouldBe` 0
 
-  it "VersionGetMinor returns >= 18" $ do
+  it "VersionGetMinor returns >= 14" $ do
     minor <- c_VersionGetMinor
-    minor `shouldSatisfy` (>= 18)
+    minor `shouldSatisfy` (>= 14)
 
   it "VersionGetPatch returns a plausible patch" $ do
     patch <- c_VersionGetPatch

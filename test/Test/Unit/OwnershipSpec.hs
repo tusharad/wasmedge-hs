@@ -2,12 +2,13 @@
 module Test.Unit.OwnershipSpec (spec) where
 
 import Test.Hspec
-import Control.Exception (try, SomeException)
 import Foreign.Ptr       (nullPtr)
+import System.Mem        (performMajorGC)
+import Data.IORef
 
+import WasmEdge.Configure (createConfigure, deleteConfigure)
 import WasmEdge.Internal.Ownership
 import WasmEdge.Internal.Types
-import Data.IORef
 
 spec :: Spec
 spec = describe "Ownership model" $ do
@@ -44,11 +45,7 @@ spec = describe "Ownership model" $ do
     it "calling deleteVM twice should not crash (GHC idempotency via ForeignPtr)" $ do
       -- Create a Configure and delete it twice — second delete is a no-op
       -- due to ForeignPtr semantics (finalizer called only once by the GC)
-      from WasmEdge.Configure (createConfigure, deleteConfigure)
       cfg <- createConfigure
       deleteConfigure cfg
       -- Second call is safe: ForeignPtr doesn't call finalizer again
       pure ()
-
-import System.Mem (performMajorGC)
-import WasmEdge.Configure (createConfigure, deleteConfigure)

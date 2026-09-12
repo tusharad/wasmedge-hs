@@ -24,9 +24,11 @@ module WasmEdge.Error
     -- * Common predicates
   , isSuccess
   , isUserError
+  , formatError
   ) where
 
 import Control.Exception (Exception)
+import Control.DeepSeq   (NFData)
 import Data.Text         (Text)
 import Data.Word         (Word32)
 import GHC.Generics      (Generic)
@@ -41,6 +43,7 @@ data ErrCategory
   | ErrCategory_UserDefined -- ^ User-defined error code (e.g., from host functions)
   | ErrCategory_Unknown Word32  -- ^ An unrecognised category (future-proofing)
   deriving stock (Show, Eq, Generic)
+  deriving anyclass (NFData)
 
 -- | Convert a raw C enum value (Word32) to 'ErrCategory'.
 mkErrCategory :: Word32 -> ErrCategory
@@ -66,7 +69,7 @@ data WasmEdgeError = WasmEdgeError
     -- ^ Human-readable error message from the runtime.
   }
   deriving stock (Show, Eq, Generic)
-  deriving anyclass (Exception)
+  deriving anyclass (Exception, NFData)
 
 -- ---------------------------------------------------------------------------
 -- WasmResult
@@ -89,3 +92,8 @@ isSuccess e = weErrCode e == 0
 -- | True if this is a user-defined error from a host function.
 isUserError :: WasmEdgeError -> Bool
 isUserError e = weErrCategory e == ErrCategory_UserDefined
+
+-- | Format a 'WasmEdgeError' into a human-readable string.
+formatError :: WasmEdgeError -> String
+formatError e =
+  "[" ++ show (weErrCategory e) ++ " code: 0x" ++ show (weErrCode e) ++ "] " ++ show (weErrMessage e)

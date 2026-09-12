@@ -2,14 +2,11 @@
 module Test.Unit.VMSpec (spec) where
 
 import Test.Hspec
-import Control.Exception (try, SomeException)
 import Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
-import System.FilePath ((</>))
 
 import WasmEdge.VM
 import WasmEdge.Types
-import WasmEdge.Error
 
 -- Minimal valid WASM module (empty):
 -- (module)

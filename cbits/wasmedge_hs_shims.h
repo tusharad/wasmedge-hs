@@ -93,14 +93,14 @@ bool hs_WasmEdge_ResultOK(const WasmEdge_Result *res);
 
 /// Generate a result with a given category and code.
 void hs_WasmEdge_ResultGen(WasmEdge_Result *out,
-                            WasmEdge_ErrCategory category,
+                            enum WasmEdge_ErrCategory category,
                             uint32_t code);
 
 /// Get the 24-bit error code from a result.
 uint32_t hs_WasmEdge_ResultGetCode(const WasmEdge_Result *res);
 
 /// Get the error category from a result.
-WasmEdge_ErrCategory hs_WasmEdge_ResultGetCategory(const WasmEdge_Result *res);
+enum WasmEdge_ErrCategory hs_WasmEdge_ResultGetCategory(const WasmEdge_Result *res);
 
 /// Get the error message for a result (static string; do NOT free).
 const char *hs_WasmEdge_ResultGetMessage(const WasmEdge_Result *res);
@@ -319,26 +319,49 @@ void hs_WasmEdge_CompilerCompileFromBuffer(WasmEdge_Result *out,
                                             const WasmEdge_Bytes *bytes,
                                             const char *output_path);
 
-// Module instance add* (0.18+ returns WasmEdge_Result)
-void hs_WasmEdge_ModuleInstanceAddFunction(WasmEdge_Result *out,
-                                            WasmEdge_ModuleInstanceContext *cxt,
+// Module instance add* (adds export and transfers ownership)
+void hs_WasmEdge_ModuleInstanceAddFunction(WasmEdge_ModuleInstanceContext *cxt,
                                             const WasmEdge_String *name,
                                             WasmEdge_FunctionInstanceContext *func);
 
-void hs_WasmEdge_ModuleInstanceAddTable(WasmEdge_Result *out,
-                                         WasmEdge_ModuleInstanceContext *cxt,
+void hs_WasmEdge_ModuleInstanceAddTable(WasmEdge_ModuleInstanceContext *cxt,
                                          const WasmEdge_String *name,
                                          WasmEdge_TableInstanceContext *table);
 
-void hs_WasmEdge_ModuleInstanceAddMemory(WasmEdge_Result *out,
-                                          WasmEdge_ModuleInstanceContext *cxt,
+void hs_WasmEdge_ModuleInstanceAddMemory(WasmEdge_ModuleInstanceContext *cxt,
                                           const WasmEdge_String *name,
                                           WasmEdge_MemoryInstanceContext *mem);
 
-void hs_WasmEdge_ModuleInstanceAddGlobal(WasmEdge_Result *out,
-                                          WasmEdge_ModuleInstanceContext *cxt,
-                                          const WasmEdge_String *name,
-                                          WasmEdge_GlobalInstanceContext *global);
+void hs_WasmEdge_ModuleInstanceAddGlobal(WasmEdge_ModuleInstanceContext *cxt,
+                                         const WasmEdge_String *name,
+                                         WasmEdge_GlobalInstanceContext *global);
+
+// Limit and Instance creation helpers
+WasmEdge_MemoryTypeContext *hs_WasmEdge_MemoryTypeCreate(
+    bool has_max, uint64_t min_pages, uint64_t max_pages, bool shared, bool is64);
+
+WasmEdge_TableTypeContext *hs_WasmEdge_TableTypeCreate(
+    const WasmEdge_ValType *ref_type,
+    bool has_max, uint64_t min_val, uint64_t max_val, bool shared, bool is64);
+
+void hs_WasmEdge_LimitGetInfo(
+    const WasmEdge_LimitContext *lim,
+    bool *has_max, uint64_t *min_val, uint64_t *max_val, bool *shared, bool *is64);
+
+typedef void (*hs_host_func_t)(
+    void *data,
+    const WasmEdge_CallingFrameContext *frame,
+    const WasmEdge_Value *params,
+    uint32_t param_len,
+    WasmEdge_Value *returns,
+    uint32_t return_len,
+    WasmEdge_Result *res_out);
+
+WasmEdge_FunctionInstanceContext *hs_WasmEdge_FunctionInstanceCreateBinding(
+    const WasmEdge_FunctionTypeContext *type,
+    hs_host_func_t hs_fn,
+    void *data,
+    uint64_t cost);
 
 // Memory instance data operations
 void hs_WasmEdge_MemoryInstanceGetData(WasmEdge_Result *out,
@@ -408,6 +431,122 @@ void hs_WasmEdge_ModuleInstanceGetModuleName(WasmEdge_String *out,
 
 void hs_WasmEdge_PluginGetPluginName(WasmEdge_String *out,
                                       const WasmEdge_PluginContext *cxt);
+
+void hs_WasmEdge_VMForceDeleteRegisteredModule(const WasmEdge_VMContext *cxt,
+                                               const WasmEdge_String *name);
+
+const WasmEdge_FunctionTypeContext *
+hs_WasmEdge_VMGetFunctionType(const WasmEdge_VMContext *cxt,
+                              const WasmEdge_String *func_name);
+
+const WasmEdge_FunctionTypeContext *
+hs_WasmEdge_VMGetFunctionTypeRegistered(const WasmEdge_VMContext *cxt,
+                                        const WasmEdge_String *mod_name,
+                                        const WasmEdge_String *func_name);
+
+// Additional shims for struct-by-value parameters/returns
+WasmEdge_ModuleInstanceContext *
+hs_WasmEdge_ModuleInstanceCreate(const WasmEdge_String *name);
+
+WasmEdge_ModuleInstanceContext *
+hs_WasmEdge_ModuleInstanceCreateWithData(const WasmEdge_String *name,
+                                        void *host_data,
+                                        void (*finalizer)(void *));
+
+WasmEdge_FunctionInstanceContext *
+hs_WasmEdge_ModuleInstanceFindFunction(const WasmEdge_ModuleInstanceContext *cxt,
+                                       const WasmEdge_String *name);
+
+WasmEdge_TableInstanceContext *
+hs_WasmEdge_ModuleInstanceFindTable(const WasmEdge_ModuleInstanceContext *cxt,
+                                    const WasmEdge_String *name);
+
+WasmEdge_MemoryInstanceContext *
+hs_WasmEdge_ModuleInstanceFindMemory(const WasmEdge_ModuleInstanceContext *cxt,
+                                     const WasmEdge_String *name);
+
+WasmEdge_GlobalInstanceContext *
+hs_WasmEdge_ModuleInstanceFindGlobal(const WasmEdge_ModuleInstanceContext *cxt,
+                                     const WasmEdge_String *name);
+
+WasmEdge_TagInstanceContext *
+hs_WasmEdge_ModuleInstanceFindTag(const WasmEdge_ModuleInstanceContext *cxt,
+                                  const WasmEdge_String *name);
+
+const WasmEdge_ModuleInstanceContext *
+hs_WasmEdge_StoreFindModule(const WasmEdge_StoreContext *cxt,
+                            const WasmEdge_String *name);
+
+const WasmEdge_PluginContext *
+hs_WasmEdge_PluginFind(const WasmEdge_String *name);
+
+WasmEdge_ModuleInstanceContext *
+hs_WasmEdge_PluginCreateModule(const WasmEdge_PluginContext *cxt,
+                               const WasmEdge_String *name);
+
+const WasmEdge_ModuleInstanceContext *
+hs_WasmEdge_VMGetRegisteredModule(const WasmEdge_VMContext *cxt,
+                                  const WasmEdge_String *name);
+
+void hs_WasmEdge_VMRegisterModuleFromASTModule(
+    WasmEdge_Result *out,
+    WasmEdge_VMContext *cxt,
+    const WasmEdge_String *name,
+    const WasmEdge_ASTModuleContext *ast);
+
+void hs_WasmEdge_VMRegisterModuleFromImportWithAlias(
+    WasmEdge_Result *out,
+    WasmEdge_VMContext *cxt,
+    const WasmEdge_String *name,
+    const WasmEdge_ModuleInstanceContext *import_cxt);
+
+WasmEdge_Async *hs_WasmEdge_VMAsyncExecute(
+    WasmEdge_VMContext *cxt,
+    const WasmEdge_String *func_name,
+    const WasmEdge_Value *params,
+    uint32_t param_len);
+
+WasmEdge_Async *hs_WasmEdge_VMAsyncExecuteRegistered(
+    WasmEdge_VMContext *cxt,
+    const WasmEdge_String *mod_name,
+    const WasmEdge_String *func_name,
+    const WasmEdge_Value *params,
+    uint32_t param_len);
+
+WasmEdge_Async *hs_WasmEdge_VMAsyncRunWasmFromFile(
+    WasmEdge_VMContext *cxt,
+    const char *path,
+    const WasmEdge_String *func_name,
+    const WasmEdge_Value *params,
+    uint32_t param_len);
+
+WasmEdge_Async *hs_WasmEdge_VMAsyncRunWasmFromBytes(
+    WasmEdge_VMContext *cxt,
+    const WasmEdge_Bytes *bytes,
+    const WasmEdge_String *func_name,
+    const WasmEdge_Value *params,
+    uint32_t param_len);
+
+WasmEdge_Async *hs_WasmEdge_VMAsyncRunWasmFromASTModule(
+    WasmEdge_VMContext *cxt,
+    const WasmEdge_ASTModuleContext *ast,
+    const WasmEdge_String *func_name,
+    const WasmEdge_Value *params,
+    uint32_t param_len);
+
+WasmEdge_GlobalTypeContext *
+hs_WasmEdge_GlobalTypeCreate(const WasmEdge_ValType *val_type,
+                             enum WasmEdge_Mutability mut);
+
+void hs_WasmEdge_GlobalTypeGetValType(const WasmEdge_GlobalTypeContext *cxt,
+                                      WasmEdge_ValType *out);
+
+WasmEdge_GlobalInstanceContext *
+hs_WasmEdge_GlobalInstanceCreate(const WasmEdge_GlobalTypeContext *type,
+                                 const WasmEdge_Value *val);
+
+void hs_WasmEdge_TableTypeGetRefType(const WasmEdge_TableTypeContext *cxt,
+                                     WasmEdge_ValType *out);
 
 #ifdef __cplusplus
 }

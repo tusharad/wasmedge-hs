@@ -17,6 +17,14 @@ addWasm = BS.pack
     , 0x20, 0x00, 0x20, 0x01, 0x6A, 0x0B
   ]
 
+setupVM :: IO VM
+setupVM = do
+  vm <- createVM Nothing Nothing
+  _ <- loadWasmBytes vm addWasm
+  _ <- validate vm
+  _ <- instantiate vm
+  pure vm
+
 main :: IO ()
 main = defaultMain
   [ bgroup "VM lifecycle"
@@ -34,11 +42,8 @@ main = defaultMain
           _ <- validate vm
           _ <- instantiate vm
           execute vm "add" [WasmI32 1, WasmI32 2]
-    , bench "execute only (pre-loaded)" $ do
-        vm <- createVM Nothing Nothing
-        _ <- loadWasmBytes vm addWasm
-        _ <- validate vm
-        _ <- instantiate vm
-        pure $ nfIO (execute vm "add" [WasmI32 1, WasmI32 2])
+    , envWithCleanup setupVM deleteVM $ \vm ->
+        bench "execute only (pre-loaded)" $
+          nfIO (execute vm "add" [WasmI32 1, WasmI32 2])
     ]
   ]

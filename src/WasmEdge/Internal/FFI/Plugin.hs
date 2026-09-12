@@ -37,7 +37,7 @@ foreign import ccall unsafe "WasmEdge_PluginListPluginsLength"
 foreign import ccall unsafe "WasmEdge_PluginListPlugins"
   c_PluginListPlugins :: Ptr CString_ -> Word32 -> IO Word32
 
-foreign import ccall unsafe "WasmEdge_PluginFind"
+foreign import ccall unsafe "hs_WasmEdge_PluginFind"
   c_PluginFind :: Ptr CString_ -> IO (Ptr PluginTag)
 
 foreign import ccall unsafe "hs_WasmEdge_PluginGetPluginName"
@@ -49,7 +49,7 @@ foreign import ccall unsafe "WasmEdge_PluginListModuleLength"
 foreign import ccall unsafe "WasmEdge_PluginListModule"
   c_PluginListModule :: Ptr PluginTag -> Ptr CString_ -> Word32 -> IO Word32
 
-foreign import ccall unsafe "WasmEdge_PluginCreateModule"
+foreign import ccall unsafe "hs_WasmEdge_PluginCreateModule"
   c_PluginCreateModule :: Ptr PluginTag -> Ptr CString_ -> IO (Ptr ModuleInstanceTag)
 
 foreign import ccall unsafe "WasmEdge_PluginInitWASINN"

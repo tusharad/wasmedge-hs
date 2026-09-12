@@ -16,18 +16,23 @@ module WasmEdge.Store
   , borrowStore
   ) where
 
-import Control.Exception (bracket, throwIO)
-import Data.Text         (Text)
-import Foreign.Ptr
+import Control.Exception     (bracket, throwIO)
+import Control.Monad         (forM)
+import Data.Text             (Text)
+import Foreign.Marshal.Alloc (allocaBytes)
+import Foreign.Ptr           (Ptr, FunPtr, nullPtr, plusPtr)
 import WasmEdge.Error
+import WasmEdge.Module       (ModuleInstance, borrowModule)
 import WasmEdge.Internal.Types
 import WasmEdge.Internal.Ownership
-import WasmEdge.Internal.Storable
+import WasmEdge.Internal.Storable  (stringSize)
 import WasmEdge.Internal.FFI.Execution
-import WasmEdge.Internal.Utils (withWasmString, peekWasmString)
+import WasmEdge.Internal.Utils     (withWasmString, peekWasmString)
 
+-- | WebAssembly runtime store context for module instances and exported definitions.
 newtype Store = Store (OwnedCtx StoreTag)
 
+-- | Create a new runtime 'Store'.
 createStore :: IO Store
 createStore = do
   p <- c_StoreCreate
@@ -35,30 +40,42 @@ createStore = do
     then throwIO $ WasmEdgeError ErrCategory_WASM 0 "WasmEdge_StoreCreate returned NULL"
     else Store <$> mkOwned (appFunPtr c_StoreDelete) p
 
+-- | Delete a runtime 'Store'.
 deleteStore :: Store -> IO ()
-deleteStore (Store o) = withOwned o (appFunPtr c_StoreDelete)
+deleteStore (Store o) = finalizeOwned o
 
+-- | Scoped runtime 'Store'.
 withStore :: (Store -> IO a) -> IO a
 withStore = bracket createStore deleteStore
 
-findModule :: Store -> Text -> IO (Maybe ())  -- returns ModuleInstance (placeholder)
+-- | Find an exported module by name in the store.
+findModule :: Store -> Text -> IO (Maybe ModuleInstance)
 findModule (Store o) modName =
   withOwned o $ \p ->
   withWasmString modName $ \nameStr -> do
     mp <- c_StoreFindModule p nameStr
-    pure (if mp == nullPtr then Nothing else Just ())
+    if mp == nullPtr
+      then pure Nothing
+      else Just <$> borrowModule mp
 
+-- | List all registered module names in the store.
 listModules :: Store -> IO [Text]
 listModules (Store o) =
   withOwned o $ \p -> do
     n <- c_StoreListModuleLength p
-    pure []  -- stub
+    if n == 0
+      then pure []
+      else allocaBytes (fromIntegral n * stringSize) $ \arr -> do
+        _ <- c_StoreListModule p arr n
+        forM [0 .. fromIntegral n - 1] $ \i -> do
+          let ptr = arr `plusPtr` (i * stringSize)
+          peekWasmString ptr
 
--- Internal: get raw pointer (borrowed)
+-- | Extract the raw pointer of a 'Store'.
 unsafeStorePtr :: Store -> IO (Ptr StoreTag)
 unsafeStorePtr (Store o) = withOwned o pure
 
--- Create a borrowed Store from a raw pointer (from VM)
+-- | Create a borrowed 'Store' from a raw pointer (does not finalize).
 borrowStore :: Ptr StoreTag -> IO Store
 borrowStore p = Store <$> mkOwned (\_ -> pure ()) p  -- no-op finalizer
 

@@ -95,7 +95,7 @@ foreign import ccall safe "hs_WasmEdge_VMRunWasmFromASTModule"
                               -> IO ()
 
 -- Async variants
-foreign import ccall safe "WasmEdge_VMAsyncRunWasmFromFile"
+foreign import ccall safe "hs_WasmEdge_VMAsyncRunWasmFromFile"
   c_VMAsyncRunWasmFromFile :: Ptr VMTag
                              -> CString
                              -> Ptr CString_
@@ -103,7 +103,7 @@ foreign import ccall safe "WasmEdge_VMAsyncRunWasmFromFile"
                              -> Word32
                              -> IO (Ptr AsyncTag)
 
-foreign import ccall safe "WasmEdge_VMAsyncRunWasmFromBytes"
+foreign import ccall safe "hs_WasmEdge_VMAsyncRunWasmFromBytes"
   c_VMAsyncRunWasmFromBuffer :: Ptr VMTag
                                -> Ptr CBytes_
                                -> Ptr CString_
@@ -111,7 +111,7 @@ foreign import ccall safe "WasmEdge_VMAsyncRunWasmFromBytes"
                                -> Word32
                                -> IO (Ptr AsyncTag)
 
-foreign import ccall safe "WasmEdge_VMAsyncRunWasmFromASTModule"
+foreign import ccall safe "hs_WasmEdge_VMAsyncRunWasmFromASTModule"
   c_VMAsyncRunWasmFromASTModule :: Ptr VMTag
                                   -> Ptr ASTModuleTag
                                   -> Ptr CString_
@@ -134,7 +134,7 @@ foreign import ccall safe "hs_WasmEdge_VMRegisterModuleFromBuffer"
                                  -> Ptr CBytes_
                                  -> IO ()
 
-foreign import ccall safe "WasmEdge_VMRegisterModuleFromASTModule"
+foreign import ccall safe "hs_WasmEdge_VMRegisterModuleFromASTModule"
   c_VMRegisterModuleFromASTModule :: Ptr CResult_
                                     -> Ptr VMTag
                                     -> Ptr CString_
@@ -147,7 +147,7 @@ foreign import ccall safe "hs_WasmEdge_VMRegisterModuleFromImport"
                                  -> Ptr ModuleInstanceTag
                                  -> IO ()
 
-foreign import ccall safe "WasmEdge_VMRegisterModuleFromImportWithAlias"
+foreign import ccall safe "hs_WasmEdge_VMRegisterModuleFromImportWithAlias"
   c_VMRegisterModuleFromImportWithAlias :: Ptr CResult_
                                           -> Ptr VMTag
                                           -> Ptr CString_
@@ -192,10 +192,10 @@ foreign import ccall safe "hs_WasmEdge_VMExecuteRegistered"
                           -> Word32
                           -> IO ()
 
-foreign import ccall safe "WasmEdge_VMAsyncExecute"
+foreign import ccall safe "hs_WasmEdge_VMAsyncExecute"
   c_VMAsyncExecute :: Ptr VMTag -> Ptr CString_ -> Ptr () -> Word32 -> IO (Ptr AsyncTag)
 
-foreign import ccall safe "WasmEdge_VMAsyncExecuteRegistered"
+foreign import ccall safe "hs_WasmEdge_VMAsyncExecuteRegistered"
   c_VMAsyncExecuteRegistered :: Ptr VMTag
                                -> Ptr CString_
                                -> Ptr CString_
@@ -204,10 +204,10 @@ foreign import ccall safe "WasmEdge_VMAsyncExecuteRegistered"
                                -> IO (Ptr AsyncTag)
 
 -- Query
-foreign import ccall unsafe "WasmEdge_VMGetFunctionType"
+foreign import ccall unsafe "hs_WasmEdge_VMGetFunctionType"
   c_VMGetFunctionType :: Ptr VMTag -> Ptr CString_ -> IO (Ptr FunctionTypeTag)
 
-foreign import ccall unsafe "WasmEdge_VMGetFunctionTypeRegistered"
+foreign import ccall unsafe "hs_WasmEdge_VMGetFunctionTypeRegistered"
   c_VMGetFunctionTypeRegistered :: Ptr VMTag
                                   -> Ptr CString_
                                   -> Ptr CString_
@@ -225,7 +225,7 @@ foreign import ccall unsafe "WasmEdge_VMGetImportModuleContext"
 foreign import ccall unsafe "WasmEdge_VMGetActiveModule"
   c_VMGetActiveModule :: Ptr VMTag -> IO (Ptr ModuleInstanceTag)
 
-foreign import ccall unsafe "WasmEdge_VMGetRegisteredModule"
+foreign import ccall unsafe "hs_WasmEdge_VMGetRegisteredModule"
   c_VMGetRegisteredModule :: Ptr VMTag -> Ptr CString_ -> IO (Ptr ModuleInstanceTag)
 
 foreign import ccall unsafe "WasmEdge_VMListRegisteredModuleLength"
@@ -249,6 +249,6 @@ foreign import ccall unsafe "WasmEdge_VMGetExecutorContext"
 foreign import ccall unsafe "WasmEdge_VMGetStatisticsContext"
   c_VMGetStatisticsContext :: Ptr VMTag -> IO (Ptr StatisticsTag)
 
--- | Delete (unregister) a registered module from the VM. (0.18+)
-foreign import ccall unsafe "WasmEdge_VMDeleteRegisteredModule"
+-- | Delete (unregister) a registered module from the VM.
+foreign import ccall unsafe "hs_WasmEdge_VMForceDeleteRegisteredModule"
   c_VMDeleteRegisteredModule :: Ptr VMTag -> Ptr CString_ -> IO ()

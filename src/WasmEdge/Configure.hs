@@ -56,6 +56,9 @@ module WasmEdge.Configure
   , defaultStatisticsOptions
   , setStatisticsOptions
   , getStatisticsOptions
+    -- * Internal / borrowed pointers
+  , unsafeConfigurePtr
+  , borrowConfigure
   ) where
 
 import Control.Exception   (bracket)
@@ -65,7 +68,7 @@ import Foreign.Ptr
 
 import WasmEdge.Types
 import WasmEdge.Internal.Types     (ConfigureTag)
-import WasmEdge.Internal.Ownership (OwnedCtx, mkOwned, withOwned)
+import WasmEdge.Internal.Ownership (OwnedCtx, mkOwned, withOwned, finalizeOwned)
 import WasmEdge.Internal.FFI.Configure
 
 -- ---------------------------------------------------------------------------
@@ -90,8 +93,7 @@ createConfigure = do
 -- | Explicitly delete a 'Configure' context.
 -- After this call, the 'Configure' must not be used.
 deleteConfigure :: Configure -> IO ()
-deleteConfigure (Configure owned) = withOwned owned $ \p ->
-  c_ConfigureDelete `appFunPtr` p
+deleteConfigure (Configure owned) = finalizeOwned owned
 
 -- | Scoped 'Configure' context.
 -- @withConfigure action@ creates a 'Configure', passes it to @action@,
@@ -300,6 +302,14 @@ fromCBool :: CBool -> Bool
 fromCBool (CBool 0) = False
 fromCBool _         = True
 
+-- | Extract the underlying pointer for passing to other contexts (unsafe).
+unsafeConfigurePtr :: Configure -> IO (Ptr ConfigureTag)
+unsafeConfigurePtr (Configure o) = withOwned o pure
+
+-- | Create a borrowed 'Configure' context from an existing pointer.
+borrowConfigure :: Ptr ConfigureTag -> IO Configure
+borrowConfigure p = Configure <$> mkOwned (\_ -> pure ()) p
+
 -- Helper to apply a FunPtr
 appFunPtr :: FunPtr (Ptr a -> IO ()) -> Ptr a -> IO ()
 appFunPtr fp p = do
@@ -308,3 +318,4 @@ appFunPtr fp p = do
 
 foreign import ccall "dynamic"
   mkDeleter :: FunPtr (Ptr a -> IO ()) -> Ptr a -> IO ()
+

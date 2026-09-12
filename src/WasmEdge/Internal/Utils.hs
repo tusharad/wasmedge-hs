@@ -1,0 +1,118 @@
+-- |
+-- Module      : WasmEdge.Internal.Utils
+-- Description : Internal utility functions shared across FFI modules
+-- Copyright   : (c) wasmedge-hs contributors, 2026
+-- License     : Apache-2.0
+-- Stability   : internal
+--
+-- __Do not import this module in user code.__
+module WasmEdge.Internal.Utils
+  ( -- * Text / String conversion
+    withWasmString
+  , fromWasmString
+  , peekWasmString
+    -- * Checked result conversion
+  , checkResult
+  , throwOnFail
+    -- * Pointer utilities
+  , maybeNullPtr
+  , fromNullablePtr
+  ) where
+
+import Control.Exception     (throwIO)
+import Data.Text             (Text)
+import qualified Data.Text.Encoding as TE
+import qualified Data.ByteString    as BS
+import Foreign.C.String      (CString, withCStringLen, peekCStringLen)
+import Foreign.Ptr           (Ptr, nullPtr)
+import Foreign.Marshal.Alloc (alloca)
+import Data.Word             (Word32, Word8)
+
+import WasmEdge.Internal.Storable
+import WasmEdge.Internal.FFI.Basic
+  ( c_StringCreateByBuffer
+  , c_StringDelete
+  , c_StringGetBuf
+  , c_StringGetLength
+  , c_ResultOK
+  , c_ResultGetCode
+  , c_ResultGetCategory
+  , c_ResultGetMessage
+  )
+import WasmEdge.Error (WasmEdgeError (..), ErrCategory, mkErrCategory)
+
+-- ---------------------------------------------------------------------------
+-- Text <-> WasmEdge_String
+-- ---------------------------------------------------------------------------
+
+-- | Convert a Haskell 'Text' to a 'WasmEdge_String' (on the stack),
+-- call the action, then delete the string.
+withWasmString :: Text -> (Ptr CString_ -> IO a) -> IO a
+withWasmString t action =
+  BS.useAsCStringLen (TE.encodeUtf8 t) $ \(buf, len) ->
+    allocaCString $ \strPtr -> do
+      c_StringCreateByBuffer strPtr buf (fromIntegral len)
+      result <- action strPtr
+      c_StringDelete strPtr
+      pure result
+
+-- | Peek a 'WasmEdge_String' (by pointer) and convert to Haskell 'Text'.
+-- Does NOT free the string.
+peekWasmString :: Ptr CString_ -> IO Text
+peekWasmString strPtr = do
+  len <- c_StringGetLength strPtr
+  buf <- c_StringGetBuf strPtr
+  if buf == nullPtr || len == 0
+    then pure mempty
+    else do
+      bs <- BS.packCStringLen (buf, fromIntegral len)
+      pure (TE.decodeUtf8Lenient bs)
+
+-- | Alias for 'peekWasmString' — reads a WasmEdge_String and returns Text.
+fromWasmString :: Ptr CString_ -> IO Text
+fromWasmString = peekWasmString
+
+-- ---------------------------------------------------------------------------
+-- Result checking
+-- ---------------------------------------------------------------------------
+
+-- | Check a 'WasmEdge_Result' pointer and return 'Right ()' on success
+-- or 'Left WasmEdgeError' on failure.
+checkResult :: Ptr CResult_ -> IO (Either WasmEdgeError ())
+checkResult resPtr = do
+  ok <- c_ResultOK resPtr
+  if ok
+    then pure (Right ())
+    else do
+      code     <- c_ResultGetCode resPtr
+      category <- c_ResultGetCategory resPtr
+      msgPtr   <- c_ResultGetMessage resPtr
+      msg      <- if msgPtr == nullPtr
+                    then pure "unknown error"
+                    else peekCStringLen (msgPtr, 256) >>= \s ->
+                           pure (TE.decodeUtf8Lenient (BS.pack (map (fromIntegral . fromEnum) s)))
+      pure $ Left WasmEdgeError
+        { weErrCategory = mkErrCategory category
+        , weErrCode     = code
+        , weErrMessage  = msg
+        }
+
+-- | Like 'checkResult', but throws 'WasmEdgeError' on failure.
+throwOnFail :: Ptr CResult_ -> IO ()
+throwOnFail resPtr = checkResult resPtr >>= \case
+  Right ()  -> pure ()
+  Left  err -> throwIO err
+
+-- ---------------------------------------------------------------------------
+-- Pointer utilities
+-- ---------------------------------------------------------------------------
+
+-- | Convert a 'Maybe (Ptr t)' to a nullable C pointer.
+maybeNullPtr :: Maybe (Ptr t) -> Ptr t
+maybeNullPtr = maybe nullPtr id
+
+-- | Convert a nullable C pointer to 'Maybe'.
+fromNullablePtr :: Ptr t -> Maybe (Ptr t)
+fromNullablePtr p
+  | p == nullPtr = Nothing
+  | otherwise    = Just p

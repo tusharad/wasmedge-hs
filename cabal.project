@@ -1,0 +1,15 @@
+packages: .
+
+-- Use index-state for reproducible builds
+-- index-state: hackage.haskell.org 2026-09-01T00:00:00Z
+
+-- Allow newer versions during development; pin for releases
+-- constraints:
+
+-- WasmEdge library search path — set this if WasmEdge is not in /usr/local
+-- extra-lib-dirs: /opt/wasmedge/lib
+-- extra-include-dirs: /opt/wasmedge/include
+
+optimization: 1
+tests: True
+benchmarks: False

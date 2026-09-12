@@ -1,0 +1,129 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Run weekly to catch upstream WasmEdge breaking changes early
+    - cron: '0 6 * * 1'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    name: GHC ${{ matrix.ghc }} / ${{ matrix.os }} / WasmEdge ${{ matrix.wasmedge }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        ghc:
+          - "9.6.6"
+          - "9.8.4"
+          - "9.10.1"
+        os:
+          - ubuntu-24.04
+          - macos-14  # Apple Silicon
+        wasmedge:
+          - "0.18.0"
+          - "0.17.5"  # Previous stable — tests backwards compat of our code
+        exclude:
+          # WasmEdge 0.17.5 macOS arm64 build not available
+          - os: macos-14
+            wasmedge: "0.17.5"
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install GHC and cabal
+        uses: haskell-actions/setup@v2
+        with:
+          ghc-version: ${{ matrix.ghc }}
+          cabal-version: "3.12"
+
+      - name: Install WasmEdge (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh \
+            | bash -s -- -v ${{ matrix.wasmedge }} -p /usr/local
+          echo "LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH" >> $GITHUB_ENV
+
+      - name: Install WasmEdge (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh \
+            | bash -s -- -v ${{ matrix.wasmedge }} -p /usr/local
+          echo "DYLD_LIBRARY_PATH=/usr/local/lib:$DYLD_LIBRARY_PATH" >> $GITHUB_ENV
+
+      - name: Cache cabal store
+        uses: actions/cache@v4
+        with:
+          path: ~/.cabal/store
+          key: cabal-${{ matrix.os }}-ghc-${{ matrix.ghc }}-${{ hashFiles('wasmedge-hs.cabal', 'cabal.project') }}
+          restore-keys: |
+            cabal-${{ matrix.os }}-ghc-${{ matrix.ghc }}-
+
+      - name: cabal update
+        run: cabal update
+
+      - name: Build
+        run: cabal build --enable-tests
+        working-directory: wasmedge-hs
+
+      - name: Run tests
+        run: cabal test --test-show-details=always
+        working-directory: wasmedge-hs
+
+      - name: cabal check
+        run: cabal check
+        working-directory: wasmedge-hs
+
+  # Validate that the sdist builds cleanly (catches missing files)
+  sdist:
+    name: Source distribution
+    runs-on: ubuntu-24.04
+    needs: build-and-test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: haskell-actions/setup@v2
+        with:
+          ghc-version: "9.8.4"
+          cabal-version: "3.12"
+      - name: Install WasmEdge
+        run: |
+          curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh \
+            | bash -s -- -v 0.18.0 -p /usr/local
+      - run: |
+          cd wasmedge-hs
+          cabal sdist
+          tar xzf dist-newstyle/sdist/wasmedge-hs-*.tar.gz
+          cd wasmedge-hs-*/
+          cabal build
+
+  # Haddock documentation build
+  docs:
+    name: Haddock docs
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: haskell-actions/setup@v2
+        with:
+          ghc-version: "9.8.4"
+          cabal-version: "3.12"
+      - name: Install WasmEdge
+        run: |
+          curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh \
+            | bash -s -- -v 0.18.0 -p /usr/local
+      - name: Build Haddock docs
+        run: cabal haddock
+        working-directory: wasmedge-hs
+      - name: Upload docs artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: haddock-docs
+          path: wasmedge-hs/dist-newstyle/build/**/doc/html/wasmedge-hs/

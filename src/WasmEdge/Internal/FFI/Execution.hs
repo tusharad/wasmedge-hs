@@ -26,6 +26,7 @@ module WasmEdge.Internal.FFI.Execution
   , c_ExecutorInstantiate
   , c_ExecutorRegister
   , c_ExecutorRegisterImport
+  , c_ExecutorRegisterImportWithAlias
   , c_ExecutorInvoke
   , c_ExecutorAsyncInvoke
   , c_ExecutorExperimentalRegisterPreHostFunction
@@ -140,6 +141,15 @@ foreign import ccall safe "hs_WasmEdge_ExecutorRegisterImport"
     Ptr ExecutorTag ->
     Ptr StoreTag ->
     Ptr ModuleInstanceTag ->
+    IO ()
+
+foreign import ccall safe "hs_WasmEdge_ExecutorRegisterImportWithAlias"
+  c_ExecutorRegisterImportWithAlias ::
+    Ptr CResult_ ->
+    Ptr ExecutorTag ->
+    Ptr StoreTag ->
+    Ptr ModuleInstanceTag ->
+    Ptr CString_ ->
     IO ()
 
 foreign import ccall safe "hs_WasmEdge_ExecutorInvoke"

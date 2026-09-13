@@ -59,9 +59,9 @@ module WasmEdge.Function
 
 import Control.Exception (bracket, throwIO)
 import Control.Monad (forM_)
-import Data.Int (Int32, Int64)
+import Data.Int (Int16, Int32, Int64, Int8)
 import Data.Proxy (Proxy (..))
-import Data.Word (Word32, Word64)
+import Data.Word (Word16, Word32, Word64, Word8)
 import Foreign.Marshal.Utils (copyBytes)
 import Foreign.Ptr (FunPtr, Ptr, castPtr, freeHaskellFunPtr, nullPtr, plusPtr)
 
@@ -272,6 +272,43 @@ instance WasmValType Double where
 instance WasmValType WasmVal where
   toWasmVal = id
   fromWasmVal = Just
+  wasmValType _ = I32
+
+-- | 'Int8' is coerced to an @i32@ (Wasm has no @i8@).
+instance WasmValType Int8 where
+  toWasmVal = WasmI32 . fromIntegral
+  fromWasmVal (WasmI32 v) = Just (fromIntegral v)
+  fromWasmVal _ = Nothing
+  wasmValType _ = I32
+
+-- | 'Word8' is coerced to an @i32@ (Wasm has no @u8@).
+instance WasmValType Word8 where
+  toWasmVal = WasmI32 . fromIntegral
+  fromWasmVal (WasmI32 v) = Just (fromIntegral v)
+  fromWasmVal _ = Nothing
+  wasmValType _ = I32
+
+-- | 'Int16' is coerced to an @i32@ (Wasm has no @i16@).
+instance WasmValType Int16 where
+  toWasmVal = WasmI32 . fromIntegral
+  fromWasmVal (WasmI32 v) = Just (fromIntegral v)
+  fromWasmVal _ = Nothing
+  wasmValType _ = I32
+
+-- | 'Word16' is coerced to an @i32@ (Wasm has no @u16@).
+instance WasmValType Word16 where
+  toWasmVal = WasmI32 . fromIntegral
+  fromWasmVal (WasmI32 v) = Just (fromIntegral v)
+  fromWasmVal _ = Nothing
+  wasmValType _ = I32
+
+-- | 'Bool' is encoded as @i32@: 0 = 'False', 1 = 'True'.
+instance WasmValType Bool where
+  toWasmVal True = WasmI32 1
+  toWasmVal False = WasmI32 0
+  fromWasmVal (WasmI32 0) = Just False
+  fromWasmVal (WasmI32 _) = Just True
+  fromWasmVal _ = Nothing
   wasmValType _ = I32
 
 -- | Typeclass for host function return values.

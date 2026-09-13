@@ -146,6 +146,7 @@ library
     WasmEdge.Memory
     WasmEdge.Memory.Codec
     WasmEdge.Memory.Alloc
+    WasmEdge.Bindgen
     WasmEdge.Global
     WasmEdge.Tag
     -- High-level VM
@@ -267,3 +268,46 @@ executable wasmedge-hs-example-plugin
       wasmedge-hs
     , base
     , text
+
+executable wasmedge-hs-example-api-suite
+  import:          defaults
+  hs-source-dirs:  examples
+  main-is:         Stress/Main.hs
+  ghc-options:     -threaded -rtsopts "-with-rtsopts=-N"
+  other-modules:
+    Stress.Lib
+    Stress.WasmBytecode
+    Stress.AOTWorkflow
+    Stress.AsyncTimeout
+    Stress.BigMemory
+    Stress.CallerIntrospection
+    Stress.ChaosFault
+    Stress.ComplexData
+    Stress.ConcurrentPool
+    Stress.GlobalState
+    Stress.HostPipeline
+    Stress.LeakCheck
+    Stress.LoggingDiagnostic
+    Stress.LowLevelPipeline
+    Stress.PluginWorkflow
+    Stress.StatisticsCost
+    Stress.StoreReflection
+    Stress.TableIndirect
+    Stress.TagException
+    Stress.WASILifecycle
+  build-depends:
+      wasmedge-hs
+    , base
+    , bytestring
+    , text
+    , vector
+    , async
+    , stm
+    , clock
+    , cryptohash-sha256
+    , temporary
+    , filepath
+    , directory
+    , containers
+    , aeson
+

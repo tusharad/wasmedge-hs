@@ -90,6 +90,9 @@ module WasmEdge
   , ResultEncoding (..)
   , defaultConvention
 
+    -- * High-Level Guest Calling & Bindgen (re-exported from "WasmEdge.Bindgen")
+  , module WasmEdge.Bindgen
+
     -- * Lifted Host Functions (re-exported from "WasmEdge.Function.Memory")
   , liftMemFunc
   , liftMemFunc_
@@ -102,6 +105,7 @@ import Data.Text qualified as T
 import Data.Word (Word32)
 import Foreign.C (peekCString)
 
+import WasmEdge.Bindgen
 import WasmEdge.Error
 import WasmEdge.Function
   ( ToHostFunc (..)

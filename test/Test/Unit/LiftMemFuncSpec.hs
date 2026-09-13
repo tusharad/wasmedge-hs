@@ -16,22 +16,15 @@ Tests complex data round-trips through Wasm linear memory:
 -}
 module Test.Unit.LiftMemFuncSpec (spec) where
 
-import Control.Monad (void)
 import Data.Aeson (FromJSON (..), ToJSON (..), (.!=), (.:), (.:?), (.=))
 import Data.Aeson qualified as Aeson
-import Data.Int (Int32)
 import Data.Text (Text)
 import Data.Text qualified as T
 import GHC.Generics (Generic)
 import Test.Hspec
 
 import WasmEdge
-import WasmEdge.Caller
 import WasmEdge.Function
-import WasmEdge.Memory.Alloc
-import WasmEdge.Memory.Codec
-import WasmEdge.Module
-import WasmEdge.VM
 
 -- ---------------------------------------------------------------------------
 -- Types for string_processor.wasm

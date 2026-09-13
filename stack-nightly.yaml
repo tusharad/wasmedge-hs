@@ -7,6 +7,8 @@ snapshot:
 packages:
   - .
 
+allow-newer: true
+
 extra-include-dirs:
   - /opt/homebrew/include
   - /usr/local/include

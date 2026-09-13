@@ -3,8 +3,8 @@
 {- |
 Module      : WasmEdge.Internal.FFI.Experimental
 Description : Raw FFI for WasmEdge experimental hooks
-Copyright   : (c) wasmedge-hs contributors, 2026
-License     : Apache-2.0
+Copyright   : (c) 2026 Tushar Adhatrao
+License     : MIT
 Stability   : internal
 
 These are experimental features from @wasmedge_experimental.h@.

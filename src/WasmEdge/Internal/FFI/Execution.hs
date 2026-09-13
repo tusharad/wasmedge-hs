@@ -3,8 +3,8 @@
 {- |
 Module      : WasmEdge.Internal.FFI.Execution
 Description : Raw FFI for loader, validator, executor, store, and async contexts
-Copyright   : (c) wasmedge-hs contributors, 2026
-License     : Apache-2.0
+Copyright   : (c) 2026 Tushar Adhatrao
+License     : MIT
 Stability   : internal
 -}
 module WasmEdge.Internal.FFI.Execution

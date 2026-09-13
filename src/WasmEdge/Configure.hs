@@ -1,8 +1,8 @@
 {- |
 Module      : WasmEdge.Configure
 Description : WasmEdge configuration context
-Copyright   : (c) wasmedge-hs contributors, 2026
-License     : Apache-2.0
+Copyright   : (c) 2026 Tushar Adhatrao
+License     : MIT
 Stability   : stable
 
 The 'Configure' context controls which WASM proposals are enabled,

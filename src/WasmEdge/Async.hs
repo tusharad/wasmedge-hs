@@ -1,8 +1,8 @@
 {- |
 Module      : WasmEdge.Async
 Description : Asynchronous WasmEdge execution results
-Copyright   : (c) wasmedge-hs contributors, 2026
-License     : Apache-2.0
+Copyright   : (c) 2026 Tushar Adhatrao
+License     : MIT
 Stability   : stable
 
 When functions are invoked via @async*@ variants in 'WasmEdge.VM' or

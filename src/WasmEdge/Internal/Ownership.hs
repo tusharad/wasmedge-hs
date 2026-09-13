@@ -1,8 +1,8 @@
 {- |
 Module      : WasmEdge.Internal.Ownership
 Description : Owned and borrowed pointer wrappers with GC finalizer support
-Copyright   : (c) wasmedge-hs contributors, 2026
-License     : Apache-2.0
+Copyright   : (c) 2026 Tushar Adhatrao
+License     : MIT
 Stability   : internal
 
 This module implements the two fundamental pointer wrappers:

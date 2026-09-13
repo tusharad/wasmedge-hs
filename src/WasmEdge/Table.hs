@@ -1,8 +1,8 @@
 {- |
 Module      : WasmEdge.Table
 Description : WasmEdge table contexts
-Copyright   : (c) wasmedge-hs contributors, 2026
-License     : Apache-2.0
+Copyright   : (c) 2026 Tushar Adhatrao
+License     : MIT
 Stability   : stable
 
 Provides types and functions for WebAssembly table instances and types:

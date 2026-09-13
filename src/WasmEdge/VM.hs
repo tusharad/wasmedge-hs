@@ -60,6 +60,7 @@ module WasmEdge.VM
   , registerModuleFromFile
   , registerModuleFromBytes
   , registerModuleFromImport
+  , registerModuleFromImportWithAlias
 
     -- * Step-by-step pipeline
   , loadWasmFile
@@ -85,6 +86,7 @@ module WasmEdge.VM
 
 import Control.Exception (bracket, throwIO)
 import Data.ByteString (ByteString)
+import Data.IORef (IORef, atomicModifyIORef', newIORef, writeIORef)
 import Data.Text (Text)
 import Data.Word (Word32)
 import Foreign.C (withCString)
@@ -114,11 +116,15 @@ import WasmEdge.Store qualified as St
 -- VM newtype
 -- ---------------------------------------------------------------------------
 
--- | Opaque WasmEdge VM context.
-newtype VM = VM (OwnedCtx VMTag)
+{- | Opaque WasmEdge VM context.
+
+Automatically retains registered host 'ModuleInstance's to guarantee their
+lifetime as long as the VM is alive, preventing use-after-free bugs.
+-}
+data VM = VM !(OwnedCtx VMTag) !(IORef [ModuleInstance])
 
 instance NFData VM where
-  rnf !_ = ()
+  rnf (VM !_ !_) = ()
 
 -- ---------------------------------------------------------------------------
 -- Lifecycle
@@ -136,11 +142,16 @@ createVM mCfg mStore = do
   ptr <- c_VMCreate cfgPtr storePtr
   if ptr == nullPtr
     then throwIO $ WasmEdgeError ErrCategory_WASM 0 "WasmEdge_VMCreate returned NULL"
-    else VM <$> mkOwned (appFunPtr c_VMDelete) ptr
+    else do
+      owned <- mkOwned (appFunPtr c_VMDelete) ptr
+      ref <- newIORef []
+      pure (VM owned ref)
 
 -- | Delete a VM context explicitly.
 deleteVM :: VM -> IO ()
-deleteVM (VM owned) = finalizeOwned owned
+deleteVM (VM owned ref) = do
+  writeIORef ref []
+  finalizeOwned owned
 
 -- | Scoped VM context.
 withVM :: Maybe Cfg.Configure -> Maybe St.Store -> (VM -> IO a) -> IO a
@@ -184,7 +195,7 @@ runWasmFile ::
   -- | Parameters
   [WasmVal] ->
   IO (WasmResult [WasmVal])
-runWasmFile (VM owned) path funcName params =
+runWasmFile (VM owned _) path funcName params =
   withOwned owned $ \vmPtr ->
     withCString path $ \cPath ->
       withWasmString funcName $ \funcStr ->
@@ -215,7 +226,7 @@ runWasmBytes ::
   Text ->
   [WasmVal] ->
   IO (WasmResult [WasmVal])
-runWasmBytes (VM owned) wasm funcName params =
+runWasmBytes (VM owned _) wasm funcName params =
   withOwned owned $ \vmPtr ->
     withWasmBytes wasm $ \bytesPtr ->
       withWasmString funcName $ \funcStr ->
@@ -245,7 +256,7 @@ runWasmBytes (VM owned) wasm funcName params =
 
 -- | Async variant of 'runWasmFile'.
 asyncRunWasmFile :: VM -> FilePath -> Text -> [WasmVal] -> IO Async.Async
-asyncRunWasmFile (VM owned) path funcName params =
+asyncRunWasmFile (VM owned _) path funcName params =
   withOwned owned $ \vmPtr ->
     withCString path $ \cPath ->
       withWasmString funcName $ \funcStr ->
@@ -255,7 +266,7 @@ asyncRunWasmFile (VM owned) path funcName params =
 
 -- | Async variant of 'runWasmBytes'.
 asyncRunWasmBytes :: VM -> ByteString -> Text -> [WasmVal] -> IO Async.Async
-asyncRunWasmBytes (VM owned) wasm funcName params =
+asyncRunWasmBytes (VM owned _) wasm funcName params =
   withOwned owned $ \vmPtr ->
     withWasmBytes wasm $ \bytesPtr ->
       withWasmString funcName $ \funcStr ->
@@ -269,7 +280,7 @@ asyncRunWasmBytes (VM owned) wasm funcName params =
 
 -- | Register and instantiate a named module from a file.
 registerModuleFromFile :: VM -> Text -> FilePath -> IO (WasmResult ())
-registerModuleFromFile (VM owned) modName path =
+registerModuleFromFile (VM owned _) modName path =
   withOwned owned $ \vmPtr ->
     withWasmString modName $ \modStr ->
       withCString path $ \cPath ->
@@ -279,7 +290,7 @@ registerModuleFromFile (VM owned) modName path =
 
 -- | Register and instantiate a named module from bytes.
 registerModuleFromBytes :: VM -> Text -> ByteString -> IO (WasmResult ())
-registerModuleFromBytes (VM owned) modName wasm =
+registerModuleFromBytes (VM owned _) modName wasm =
   withOwned owned $ \vmPtr ->
     withWasmString modName $ \modStr ->
       withWasmBytes wasm $ \bytesPtr ->
@@ -288,15 +299,29 @@ registerModuleFromBytes (VM owned) modName wasm =
           checkResult resPtr
 
 {- | Register an existing 'ModuleInstance' into the VM.
-The VM takes ownership; do not delete the module yourself after this call.
+The VM automatically retains the module to guarantee its lifetime.
 -}
 registerModuleFromImport :: VM -> ModuleInstance -> IO (WasmResult ())
-registerModuleFromImport (VM owned) (ModuleInstance mOwned) =
+registerModuleFromImport (VM owned ref) modInst@(ModuleInstance mOwned) = do
+  atomicModifyIORef' ref (\mods -> (modInst : mods, ()))
   withOwned owned $ \vmPtr ->
     withOwned mOwned $ \mPtr ->
       allocaCResult $ \resPtr -> do
         c_VMRegisterModuleFromImport resPtr vmPtr mPtr
         checkResult resPtr
+
+{- | Register an existing 'ModuleInstance' into the VM under a custom alias name.
+The VM automatically retains the module to guarantee its lifetime.
+-}
+registerModuleFromImportWithAlias :: VM -> Text -> ModuleInstance -> IO (WasmResult ())
+registerModuleFromImportWithAlias (VM owned ref) alias modInst@(ModuleInstance mOwned) = do
+  atomicModifyIORef' ref (\mods -> (modInst : mods, ()))
+  withOwned owned $ \vmPtr ->
+    withWasmString alias $ \aliasPtr ->
+      withOwned mOwned $ \mPtr ->
+        allocaCResult $ \resPtr -> do
+          c_VMRegisterModuleFromImportWithAlias resPtr vmPtr aliasPtr mPtr
+          checkResult resPtr
 
 -- ---------------------------------------------------------------------------
 -- Step-by-step pipeline
@@ -304,7 +329,7 @@ registerModuleFromImport (VM owned) (ModuleInstance mOwned) =
 
 -- | Load a WASM file into the VM (does not validate or instantiate).
 loadWasmFile :: VM -> FilePath -> IO (WasmResult ())
-loadWasmFile (VM owned) path =
+loadWasmFile (VM owned _) path =
   withOwned owned $ \vmPtr ->
     withCString path $ \cPath ->
       allocaCResult $ \resPtr -> do
@@ -313,7 +338,7 @@ loadWasmFile (VM owned) path =
 
 -- | Load a WASM module from bytes.
 loadWasmBytes :: VM -> ByteString -> IO (WasmResult ())
-loadWasmBytes (VM owned) wasm =
+loadWasmBytes (VM owned _) wasm =
   withOwned owned $ \vmPtr ->
     withWasmBytes wasm $ \bytesPtr ->
       allocaCResult $ \resPtr -> do
@@ -322,7 +347,7 @@ loadWasmBytes (VM owned) wasm =
 
 -- | Validate the loaded WASM module.
 validate :: VM -> IO (WasmResult ())
-validate (VM owned) =
+validate (VM owned _) =
   withOwned owned $ \vmPtr ->
     allocaCResult $ \resPtr -> do
       c_VMValidate resPtr vmPtr
@@ -330,7 +355,7 @@ validate (VM owned) =
 
 -- | Instantiate the loaded and validated WASM module.
 instantiate :: VM -> IO (WasmResult ())
-instantiate (VM owned) =
+instantiate (VM owned _) =
   withOwned owned $ \vmPtr ->
     allocaCResult $ \resPtr -> do
       c_VMInstantiate resPtr vmPtr
@@ -338,7 +363,7 @@ instantiate (VM owned) =
 
 -- | Execute a function in the instantiated module.
 execute :: VM -> Text -> [WasmVal] -> IO (WasmResult [WasmVal])
-execute (VM owned) funcName params =
+execute (VM owned _) funcName params =
   withOwned owned $ \vmPtr ->
     withWasmString funcName $ \funcStr ->
       withValArray params $ \paramsPtr paramLen ->
@@ -362,7 +387,7 @@ execute (VM owned) funcName params =
 
 -- | Execute a function from a named registered module.
 executeRegistered :: VM -> Text -> Text -> [WasmVal] -> IO (WasmResult [WasmVal])
-executeRegistered (VM owned) modName funcName params =
+executeRegistered (VM owned _) modName funcName params =
   withOwned owned $ \vmPtr ->
     withWasmString modName $ \modStr ->
       withWasmString funcName $ \funcStr ->
@@ -388,7 +413,7 @@ executeRegistered (VM owned) modName funcName params =
 
 -- | Async variant of 'execute'.
 asyncExecute :: VM -> Text -> [WasmVal] -> IO Async.Async
-asyncExecute (VM owned) funcName params =
+asyncExecute (VM owned _) funcName params =
   withOwned owned $ \vmPtr ->
     withWasmString funcName $ \funcStr ->
       withValArray params $ \paramsPtr paramLen -> do
@@ -397,7 +422,7 @@ asyncExecute (VM owned) funcName params =
 
 -- | Async variant of 'executeRegistered'.
 asyncExecuteRegistered :: VM -> Text -> Text -> [WasmVal] -> IO Async.Async
-asyncExecuteRegistered (VM owned) modName funcName params =
+asyncExecuteRegistered (VM owned _) modName funcName params =
   withOwned owned $ \vmPtr ->
     withWasmString modName $ \modStr ->
       withWasmString funcName $ \funcStr ->
@@ -411,7 +436,7 @@ asyncExecuteRegistered (VM owned) modName funcName params =
 
 -- | Get the function type of an exported function.
 getFunctionType :: VM -> Text -> IO (Maybe FunctionType)
-getFunctionType (VM owned) funcName =
+getFunctionType (VM owned _) funcName =
   withOwned owned $ \vmPtr ->
     withWasmString funcName $ \funcStr -> do
       p <- c_VMGetFunctionType vmPtr funcStr
@@ -421,7 +446,7 @@ getFunctionType (VM owned) funcName =
 
 -- | Get the function type of a function in a registered module.
 getFunctionTypeRegistered :: VM -> Text -> Text -> IO (Maybe FunctionType)
-getFunctionTypeRegistered (VM owned) modName funcName =
+getFunctionTypeRegistered (VM owned _) modName funcName =
   withOwned owned $ \vmPtr ->
     withWasmString modName $ \modStr ->
       withWasmString funcName $ \funcStr -> do
@@ -432,25 +457,25 @@ getFunctionTypeRegistered (VM owned) modName funcName =
 
 -- | Clean up the VM (unload the current module without deleting the VM).
 cleanup :: VM -> IO ()
-cleanup (VM owned) = withOwned owned c_VMCleanup
+cleanup (VM owned _) = withOwned owned c_VMCleanup
 
 -- | Get the shared 'Store' from the VM (borrowed — do NOT delete it).
 getStore :: VM -> IO St.Store
-getStore (VM owned) =
+getStore (VM owned _) =
   withOwned owned $ \vmPtr -> do
     p <- c_VMGetStoreContext vmPtr
     St.borrowStore p
 
 -- | Get the statistics context from the VM (borrowed).
 getStatistics :: VM -> IO Statistics
-getStatistics (VM owned) =
+getStatistics (VM owned _) =
   withOwned owned $ \vmPtr -> do
     p <- c_VMGetStatisticsContext vmPtr
     borrowStatistics p
 
 -- | List all registered module names.
 listRegisteredModules :: VM -> IO [Text]
-listRegisteredModules (VM owned) =
+listRegisteredModules (VM owned _) =
   withOwned owned $ \vmPtr -> do
     n <- c_VMListRegisteredModuleLength vmPtr
     if n == 0
@@ -463,7 +488,7 @@ listRegisteredModules (VM owned) =
 
 -- | Delete a registered module from the VM by name (0.18+).
 deleteRegisteredModule :: VM -> Text -> IO ()
-deleteRegisteredModule (VM owned) modName =
+deleteRegisteredModule (VM owned _) modName =
   withOwned owned $ \vmPtr ->
     withWasmString modName $ \modStr ->
       c_VMDeleteRegisteredModule vmPtr modStr

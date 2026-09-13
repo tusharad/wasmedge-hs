@@ -3,8 +3,8 @@
 {- |
 Module      : WasmEdge.Value
 Description : Conversion between Haskell 'WasmVal' and WasmEdge C values
-Copyright   : (c) wasmedge-hs contributors, 2026
-License     : Apache-2.0
+Copyright   : (c) 2026 Tushar Adhatrao
+License     : MIT
 Stability   : stable
 
 Provides functions to encode 'WasmVal' into the C representation and
@@ -29,12 +29,9 @@ module WasmEdge.Value
   ) where
 
 import Control.Monad (forM, forM_)
-import Data.Int (Int32, Int64)
 import Data.WideWord.Int128 (Int128 (..))
-import Data.Word (Word32, Word64)
+import Data.Word (Word32)
 import Foreign.C (CBool (..), CDouble (..), CFloat (..))
-import Foreign.Marshal.Alloc (allocaBytes)
-import Foreign.Marshal.Array (allocaArray, peekArray)
 import Foreign.Marshal.Utils (copyBytes)
 import Foreign.Ptr
 import Foreign.Storable
@@ -113,7 +110,7 @@ encodeVal val action = allocaCValue $ \p -> do
     WasmI64 v -> c_ValueGenI64 p v
     WasmF32 v -> c_ValueGenF32 p (CFloat v)
     WasmF64 v -> c_ValueGenF64 p (CDouble v)
-    WasmV128 (Int128 hi lo) -> c_ValueGenV128 p (fromIntegral hi) (fromIntegral lo)
+    WasmV128 (Int128 hi lo) -> c_ValueGenV128 p hi lo
     WasmFuncRef Nothing -> c_ValueGenNullFuncRef p
     WasmFuncRef (Just (FuncRefPtr fp)) ->
       c_ValueGenFuncRef p (castPtr fp)
@@ -148,7 +145,7 @@ decodeVal p = do
           lo <- peek loPtr
           free hiPtr
           free loPtr
-          pure $ WasmV128 (Int128 (fromIntegral hi) (fromIntegral lo))
+          pure $ WasmV128 (Int128 hi lo)
       | toBool isFR -> do
           isNull <- c_ValueIsNullRef p
           if toBool isNull

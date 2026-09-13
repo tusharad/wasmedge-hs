@@ -3,8 +3,8 @@
 {- |
 Module      : WasmEdge.Internal.FFI.AST
 Description : Raw FFI for WasmEdge AST module context
-Copyright   : (c) wasmedge-hs contributors, 2026
-License     : Apache-2.0
+Copyright   : (c) 2026 Tushar Adhatrao
+License     : MIT
 Stability   : internal
 -}
 module WasmEdge.Internal.FFI.AST

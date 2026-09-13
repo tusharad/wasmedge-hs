@@ -3,8 +3,8 @@
 {- |
 Module      : WasmEdge.Internal.FFI.Value
 Description : Raw FFI for WasmEdge value types and value gen/get
-Copyright   : (c) wasmedge-hs contributors, 2026
-License     : Apache-2.0
+Copyright   : (c) 2026 Tushar Adhatrao
+License     : MIT
 Stability   : internal
 
 __Do not import this module in user code.__

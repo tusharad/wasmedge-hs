@@ -3,8 +3,8 @@
 {- |
 Module      : WasmEdge.Internal.FFI.Compiler
 Description : Raw FFI for WasmEdge AOT compiler context
-Copyright   : (c) wasmedge-hs contributors, 2026
-License     : Apache-2.0
+Copyright   : (c) 2026 Tushar Adhatrao
+License     : MIT
 Stability   : internal
 -}
 module WasmEdge.Internal.FFI.Compiler

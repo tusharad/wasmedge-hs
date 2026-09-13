@@ -1,8 +1,8 @@
 {- |
 Module      : WasmEdge.Plugin
 Description : WasmEdge plugin discovery, loading, and module instantiation
-Copyright   : (c) wasmedge-hs contributors, 2026
-License     : Apache-2.0
+Copyright   : (c) 2026 Tushar Adhatrao
+License     : MIT
 Stability   : stable
 
 The WasmEdge plugin system allows loading native dynamic libraries that provide

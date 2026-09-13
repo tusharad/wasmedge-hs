@@ -1,8 +1,8 @@
 {- |
 Module      : WasmEdge.Tag
 Description : WasmEdge tag types and tag instances (Wasm exception handling proposal)
-Copyright   : (c) wasmedge-hs contributors, 2026
-License     : Apache-2.0
+Copyright   : (c) 2026 Tushar Adhatrao
+License     : MIT
 Stability   : stable
 
 Supports the WebAssembly Exception Handling proposal (WasmEdge 0.18+):

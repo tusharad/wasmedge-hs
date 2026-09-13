@@ -3,8 +3,8 @@
 {- |
 Module      : WasmEdge.Internal.FFI.Basic
 Description : Raw FFI bindings for WasmEdge basic types: version, string, bytes, result, log
-Copyright   : (c) wasmedge-hs contributors, 2026
-License     : Apache-2.0
+Copyright   : (c) 2026 Tushar Adhatrao
+License     : MIT
 Stability   : internal
 
 Direct 'foreign import' declarations for all WasmEdge basic C API functions,

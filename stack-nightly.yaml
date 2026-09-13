@@ -1,7 +1,8 @@
 # Stack configuration for wasmedge-hs
 # Snapshot: Stackage Nightly (GHC 9.12.x)
 
-snapshot: nightly
+snapshot:
+  url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/nightly/2026/9/9.yaml
 
 packages:
   - .

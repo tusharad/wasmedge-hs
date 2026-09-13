@@ -221,7 +221,7 @@ listFunctions (ModuleInstance o) =
     if len == 0
       then pure []
       else allocaBytes (fromIntegral len * stringSize) $ \arr -> do
-        c_ModuleInstanceListFunction p arr len
+        _ <- c_ModuleInstanceListFunction p arr len
         peekStringList arr len
 
 -- | List all exported table names.
@@ -232,7 +232,7 @@ listTables (ModuleInstance o) =
     if len == 0
       then pure []
       else allocaBytes (fromIntegral len * stringSize) $ \arr -> do
-        c_ModuleInstanceListTable p arr len
+        _ <- c_ModuleInstanceListTable p arr len
         peekStringList arr len
 
 -- | List all exported memory names.
@@ -243,7 +243,7 @@ listMemories (ModuleInstance o) =
     if len == 0
       then pure []
       else allocaBytes (fromIntegral len * stringSize) $ \arr -> do
-        c_ModuleInstanceListMemory p arr len
+        _ <- c_ModuleInstanceListMemory p arr len
         peekStringList arr len
 
 -- | List all exported global names.
@@ -254,7 +254,7 @@ listGlobals (ModuleInstance o) =
     if len == 0
       then pure []
       else allocaBytes (fromIntegral len * stringSize) $ \arr -> do
-        c_ModuleInstanceListGlobal p arr len
+        _ <- c_ModuleInstanceListGlobal p arr len
         peekStringList arr len
 
 -- | List all exported tag names (0.18+).
@@ -265,7 +265,7 @@ listTags (ModuleInstance o) =
     if len == 0
       then pure []
       else allocaBytes (fromIntegral len * stringSize) $ \arr -> do
-        c_ModuleInstanceListTag p arr len
+        _ <- c_ModuleInstanceListTag p arr len
         peekStringList arr len
 
 -- ---------------------------------------------------------------------------

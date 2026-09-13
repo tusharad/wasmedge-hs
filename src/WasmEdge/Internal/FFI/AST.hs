@@ -16,7 +16,6 @@ module WasmEdge.Internal.FFI.AST
   ) where
 
 import Data.Word (Word32)
-import Foreign.C
 import Foreign.Ptr
 
 import WasmEdge.Internal.Types

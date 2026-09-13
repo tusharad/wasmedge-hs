@@ -65,7 +65,7 @@ listPlugins = do
   if len == 0
     then pure []
     else allocaBytes (fromIntegral len * stringSize) $ \arr -> do
-      c_PluginListPlugins arr len
+      _ <- c_PluginListPlugins arr len
       peekStringList arr len
 
 -- ---------------------------------------------------------------------------
@@ -101,7 +101,7 @@ listPluginModules (Plugin (BorrowedCtx p)) = do
   if len == 0
     then pure []
     else allocaBytes (fromIntegral len * stringSize) $ \arr -> do
-      c_PluginListModule p arr len
+      _ <- c_PluginListModule p arr len
       peekStringList arr len
 
 -- | Create a 'ModuleInstance' provided by this plugin under the given module name.

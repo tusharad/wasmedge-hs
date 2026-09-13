@@ -195,7 +195,7 @@ test-suite wasmedge-hs-test
     , hspec              >= 2.11  && < 2.12
     , hspec-core         >= 2.11  && < 2.12
     , hedgehog           >= 1.4   && < 1.6
-    , hspec-hedgehog     >= 0.1   && < 0.2
+    , hspec-hedgehog     >= 0.1   && < 0.4
     , bytestring
     , text
     , filepath           >= 1.4   && < 1.6

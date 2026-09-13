@@ -31,8 +31,7 @@ import Data.Text (Text)
 import Data.Text qualified as T
 import Data.Text.Encoding qualified as TE
 import Foreign.C (CBool (..))
-import Foreign.C.String (CString, peekCString, withCStringLen)
-import Foreign.Marshal.Alloc (alloca)
+import Foreign.C.String (peekCString)
 import Foreign.Ptr (Ptr, castPtr, nullPtr)
 
 import WasmEdge.Error (WasmEdgeError (..), mkErrCategory)

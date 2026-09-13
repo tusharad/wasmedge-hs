@@ -48,7 +48,7 @@ module WasmEdge.Types
 import Control.DeepSeq (NFData)
 import Data.Int (Int32, Int64)
 import Data.WideWord.Int128 (Int128)
-import Data.Word (Word32, Word64)
+import Data.Word (Word32)
 import Foreign.Ptr (Ptr)
 import GHC.Generics (Generic)
 
@@ -210,10 +210,6 @@ data Proposal
   deriving stock (Show, Eq, Ord, Bounded, Enum, Generic)
   deriving anyclass (NFData)
 
--- | The integer value sent to the C API for each proposal.
-proposalToC :: Proposal -> Word32
-proposalToC = fromIntegral . fromEnum
-
 -- ---------------------------------------------------------------------------
 -- WasmStandard
 -- ---------------------------------------------------------------------------
@@ -229,12 +225,6 @@ data WasmStandard
   deriving stock (Show, Eq, Ord, Bounded, Enum, Generic)
   deriving anyclass (NFData)
 
-wasmStandardToC :: WasmStandard -> Word32
-wasmStandardToC = \case
-  WASM1 -> 0
-  WASM2 -> 1
-  WASM3 -> 2
-
 -- ---------------------------------------------------------------------------
 -- HostRegistration
 -- ---------------------------------------------------------------------------
@@ -247,11 +237,6 @@ data HostRegistration
     HostWasmEdgeProcess
   deriving stock (Show, Eq, Ord, Bounded, Enum, Generic)
   deriving anyclass (NFData)
-
-hostRegistrationToC :: HostRegistration -> Word32
-hostRegistrationToC = \case
-  HostWASI -> 0
-  HostWasmEdgeProcess -> 1
 
 -- ---------------------------------------------------------------------------
 -- RunMode (0.18+)
@@ -267,12 +252,6 @@ data RunMode
     RunModeLazyJIT
   deriving stock (Show, Eq, Ord, Bounded, Enum, Generic)
   deriving anyclass (NFData)
-
-runModeToC :: RunMode -> Word32
-runModeToC = \case
-  RunModeInterpreter -> 0
-  RunModeAOT -> 1
-  RunModeLazyJIT -> 2
 
 -- ---------------------------------------------------------------------------
 -- OptimizationLevel

@@ -13,7 +13,7 @@ __Do not import this module in user code.__
 -}
 module WasmEdge.Internal.Storable
   ( -- * WasmEdge_String layout
-    CString_ (..)
+    CString_
   , allocaCString
   , peekCStringBuf
   , peekCStringLen
@@ -21,21 +21,21 @@ module WasmEdge.Internal.Storable
   , stringSize
 
     -- * WasmEdge_Bytes layout
-  , CBytes_ (..)
+  , CBytes_
   , allocaCBytes
 
     -- * WasmEdge_Result layout
-  , CResult_ (..)
+  , CResult_
   , allocaCResult
   , peekResultCode
 
     -- * WasmEdge_ValType layout (8 bytes opaque)
-  , CValType_ (..)
+  , CValType_
   , allocaCValType
   , valTypeSize
 
     -- * WasmEdge_Value layout (uint128 + ValType = 24 bytes)
-  , CValue_ (..)
+  , CValue_
   , allocaCValue
   , valueSize
 
@@ -44,10 +44,8 @@ module WasmEdge.Internal.Storable
   , withCValueArray
   ) where
 
-import Data.Int (Int32)
-import Data.Word (Word32, Word64, Word8)
+import Data.Word (Word32, Word8)
 import Foreign.Marshal.Alloc (alloca, allocaBytes)
-import Foreign.Marshal.Array (allocaArray)
 import Foreign.Ptr
 import Foreign.Storable
 

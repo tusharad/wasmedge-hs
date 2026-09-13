@@ -16,7 +16,6 @@ module WasmEdge.Internal.FFI.Experimental
   , mkHookWrapper
   ) where
 
-import Foreign.C
 import Foreign.Ptr
 import WasmEdge.Internal.Types
 

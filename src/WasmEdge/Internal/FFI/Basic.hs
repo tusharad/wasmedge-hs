@@ -59,7 +59,6 @@ module WasmEdge.Internal.FFI.Basic
   , mkLogCallback
   ) where
 
-import Data.Int (Int32)
 import Data.Word (Word32, Word8)
 import Foreign.C
 import Foreign.Ptr

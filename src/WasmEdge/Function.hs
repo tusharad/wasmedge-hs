@@ -121,7 +121,7 @@ getFunctionTypeParameters (FunctionType o) =
     if len == 0
       then pure []
       else withCValTypeArray (fromIntegral len) $ \arr -> do
-        c_FunctionTypeGetParameters p arr len
+        _ <- c_FunctionTypeGetParameters p arr len
         peekValTypes arr len
 
 -- | Get the return types of a 'FunctionType'.
@@ -132,7 +132,7 @@ getFunctionTypeReturns (FunctionType o) =
     if len == 0
       then pure []
       else withCValTypeArray (fromIntegral len) $ \arr -> do
-        c_FunctionTypeGetReturns p arr len
+        _ <- c_FunctionTypeGetReturns p arr len
         peekValTypes arr len
 
 -- ---------------------------------------------------------------------------

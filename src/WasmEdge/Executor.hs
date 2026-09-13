@@ -29,6 +29,7 @@ module WasmEdge.Executor
   , instantiateModule
   , registerModule
   , registerImportModule
+  , registerImportModuleWithAlias
 
     -- * Function invocation
   , invokeFunction
@@ -65,7 +66,7 @@ import WasmEdge.Internal.Ownership (OwnedCtx, finalizeOwned, mkOwned, withOwned)
 import WasmEdge.Internal.Storable (allocaCResult)
 import WasmEdge.Internal.Types (ASTModuleTag, ExecutorTag)
 import WasmEdge.Internal.Utils (checkResult, withWasmBytes, withWasmString)
-import WasmEdge.Module (ModuleInstance (..), borrowModule, unsafeModulePtr)
+import WasmEdge.Module (ModuleInstance (..), ownModule, unsafeModulePtr)
 import WasmEdge.Statistics (Statistics, unsafeStatisticsPtr)
 import WasmEdge.Store (Store, unsafeStorePtr)
 import WasmEdge.Types
@@ -185,7 +186,7 @@ instantiateModule (Executor execOwned) store (ASTModule astOwned) =
               p <- peek outMod
               if p == nullPtr
                 then pure $ Left $ WasmEdgeError ErrCategory_WASM 0 "Instantiate returned NULL module"
-                else Right <$> borrowModule p
+                else Right <$> ownModule p
 
 -- | Instantiate and register an 'ASTModule' under an export name into a 'Store'.
 registerModule :: Executor -> Store -> ASTModule -> Text -> IO (WasmResult ModuleInstance)
@@ -204,7 +205,7 @@ registerModule (Executor execOwned) store (ASTModule astOwned) name =
                 p <- peek outMod
                 if p == nullPtr
                   then pure $ Left $ WasmEdgeError ErrCategory_WASM 0 "Register returned NULL module"
-                  else Right <$> borrowModule p
+                  else Right <$> ownModule p
 
 -- | Register a pre-created 'ModuleInstance' (e.g. host module or WASI) into a 'Store'.
 registerImportModule :: Executor -> Store -> ModuleInstance -> IO (WasmResult ())
@@ -215,6 +216,17 @@ registerImportModule (Executor execOwned) store modInst =
     allocaCResult $ \resPtr -> do
       c_ExecutorRegisterImport resPtr execPtr storePtr modPtr
       checkResult resPtr
+
+-- | Register a pre-created 'ModuleInstance' under a custom alias name into a 'Store'.
+registerImportModuleWithAlias :: Executor -> Store -> ModuleInstance -> Text -> IO (WasmResult ())
+registerImportModuleWithAlias (Executor execOwned) store modInst alias =
+  withOwned execOwned $ \execPtr -> do
+    storePtr <- unsafeStorePtr store
+    modPtr <- unsafeModulePtr modInst
+    withWasmString alias $ \aliasPtr ->
+      allocaCResult $ \resPtr -> do
+        c_ExecutorRegisterImportWithAlias resPtr execPtr storePtr modPtr aliasPtr
+        checkResult resPtr
 
 -- ---------------------------------------------------------------------------
 -- Invocation

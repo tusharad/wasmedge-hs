@@ -50,6 +50,8 @@ module WasmEdge
 
     -- * VM (re-exported from "WasmEdge.VM")
   , VM
+  , createVM
+  , deleteVM
   , withVM
   , VMConfig (..)
   , defaultVMConfig
@@ -61,6 +63,11 @@ module WasmEdge
   , validate
   , instantiate
   , execute
+  , registerModuleFromFile
+  , registerModuleFromBytes
+  , registerModuleFromImport
+  , registerModuleFromImportWithAlias
+  , executeRegistered
 
     -- * Host Functions (re-exported from "WasmEdge.Function")
   , ToHostFunc (..)
@@ -130,11 +137,18 @@ import WasmEdge.Types
 import WasmEdge.VM
   ( VM
   , VMConfig (..)
+  , createVM
   , defaultVMConfig
+  , deleteVM
   , execute
+  , executeRegistered
   , instantiate
   , loadWasmBytes
   , loadWasmFile
+  , registerModuleFromBytes
+  , registerModuleFromFile
+  , registerModuleFromImport
+  , registerModuleFromImportWithAlias
   , runWasmBytes
   , runWasmFile
   , validate

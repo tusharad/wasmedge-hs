@@ -55,6 +55,8 @@ module WasmEdge.Module
     -- * Internal / borrowed pointers
   , unsafeModulePtr
   , borrowModule
+  , ownModule
+  , disarmModule
   ) where
 
 import Control.Exception (bracket, throwIO)
@@ -79,7 +81,7 @@ import WasmEdge.Function
   )
 import WasmEdge.Global (GlobalInstance, borrowGlobal, disarmGlobal, unsafeGlobalPtr)
 import WasmEdge.Internal.FFI.Instance
-import WasmEdge.Internal.Ownership (OwnedCtx, finalizeOwned, mkOwned, withOwned)
+import WasmEdge.Internal.Ownership (OwnedCtx, disarmOwned, finalizeOwned, mkOwned, withOwned)
 import WasmEdge.Internal.Storable (CString_, allocaCString, stringSize)
 import WasmEdge.Internal.Types (ModuleInstanceTag)
 import WasmEdge.Internal.Utils (peekWasmString, withWasmString)
@@ -365,6 +367,16 @@ unsafeModulePtr (ModuleInstance o) = withOwned o pure
 -- | Create a borrowed 'ModuleInstance' from a raw pointer (does not finalize).
 borrowModule :: Ptr ModuleInstanceTag -> IO ModuleInstance
 borrowModule p = ModuleInstance <$> mkOwned (\_ -> pure ()) p
+
+-- | Create an owned 'ModuleInstance' from a raw pointer (finalizes with c_ModuleInstanceDelete).
+ownModule :: Ptr ModuleInstanceTag -> IO ModuleInstance
+ownModule p = ModuleInstance <$> mkOwned (appFunPtr c_ModuleInstanceDelete) p
+
+{- | Disarm the GC finalizer of an owned 'ModuleInstance'.
+Used when ownership is transferred to the C runtime or force-deleted by the VM.
+-}
+disarmModule :: ModuleInstance -> IO ()
+disarmModule (ModuleInstance o) = disarmOwned o
 
 -- ---------------------------------------------------------------------------
 -- Helpers

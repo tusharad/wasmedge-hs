@@ -68,6 +68,26 @@ module WasmEdge
   , WasmReturn (..)
   , createHostFunction
   , withHostFunction
+
+    -- * Complex Data & Linear Memory (re-exported from "WasmEdge.Memory.Codec" and "WasmEdge.Memory.Alloc")
+  , WasmMemory (..)
+  , FixedWasmMemory (..)
+  , WasmJSON (..)
+  , jsonWasmPoke
+  , jsonWasmPeek
+  , withWasmBuffer
+  , withWasmBuffer2
+  , wasmAlloc
+  , wasmDealloc
+  , AllocConvention (..)
+  , ResultEncoding (..)
+  , defaultConvention
+
+    -- * Lifted Host Functions (re-exported from "WasmEdge.Function.Memory")
+  , liftMemFunc
+  , liftMemFunc_
+  , liftMemFuncWith
+  , callingFrameMemory
   ) where
 
 import Data.Text (Text)
@@ -83,7 +103,29 @@ import WasmEdge.Function
   , createHostFunction
   , withHostFunction
   )
+import WasmEdge.Function.Memory
+  ( callingFrameMemory
+  , liftMemFunc
+  , liftMemFuncWith
+  , liftMemFunc_
+  )
 import WasmEdge.Internal.FFI.Basic
+import WasmEdge.Memory.Alloc
+  ( AllocConvention (..)
+  , ResultEncoding (..)
+  , defaultConvention
+  , wasmAlloc
+  , wasmDealloc
+  , withWasmBuffer
+  , withWasmBuffer2
+  )
+import WasmEdge.Memory.Codec
+  ( FixedWasmMemory (..)
+  , WasmJSON (..)
+  , WasmMemory (..)
+  , jsonWasmPeek
+  , jsonWasmPoke
+  )
 import WasmEdge.Types
 import WasmEdge.VM
   ( VM

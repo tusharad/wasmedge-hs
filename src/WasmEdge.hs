@@ -1,6 +1,7 @@
 {- |
 Module      : WasmEdge
 Description : Re-exports for convenient import of the WasmEdge Haskell bindings
+Author      : Tushar Adhatrao <tusharadhatrao@gmail.com>
 Copyright   : (c) 2026 Tushar Adhatrao
 License     : MIT
 Stability   : stable
@@ -41,6 +42,7 @@ module WasmEdge
   , WasmResult
   , ErrCategory (..)
   , formatError
+  , throwOnLeft
 
     -- * Version
   , version
@@ -98,6 +100,12 @@ module WasmEdge
   , liftMemFunc_
   , liftMemFuncWith
   , callingFrameMemory
+
+    -- * Caller memory helpers (re-exported from "WasmEdge.Caller")
+  , getCallerMemory
+  , readCallerMemory
+  , writeCallerMemory
+  , readCallerCString
   ) where
 
 import Data.Text (Text)
@@ -106,6 +114,12 @@ import Data.Word (Word32)
 import Foreign.C (peekCString)
 
 import WasmEdge.Bindgen
+import WasmEdge.Caller
+  ( getCallerMemory
+  , readCallerCString
+  , readCallerMemory
+  , writeCallerMemory
+  )
 import WasmEdge.Error
 import WasmEdge.Function
   ( ToHostFunc (..)
@@ -164,7 +178,7 @@ import WasmEdge.VM
 -- Version
 -- ---------------------------------------------------------------------------
 
--- | The version string of the linked WasmEdge library (e.g., @\"0.18.0\"@).
+-- | The version string of the linked WasmEdge library (e.g., @0.18.0@).
 version :: IO Text
 version = do
   cs <- c_VersionGet

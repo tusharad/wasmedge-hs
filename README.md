@@ -68,17 +68,23 @@ import qualified Data.ByteString as BS
 import WasmEdge.VM
 import WasmEdge.Types
 
--- WASM bytecode defining: add(a, b) -> a + b
+-- Minimal WebAssembly module implementing: add(a: i32, b: i32) -> i32
 addWasm :: BS.ByteString
-addWasm = ...
+addWasm = BS.pack
+  [ 0x00, 0x61, 0x73, 0x6D, 0x01, 0x00, 0x00, 0x00  -- magic + version
+  , 0x01, 0x07, 0x01, 0x60, 0x02, 0x7F, 0x7F, 0x01, 0x7F  -- type: (i32, i32) -> i32
+  , 0x03, 0x02, 0x01, 0x00                              -- function section
+  , 0x07, 0x07, 0x01, 0x03, 0x61, 0x64, 0x64, 0x00, 0x00  -- export "add"
+  , 0x0A, 0x09, 0x01, 0x07, 0x00, 0x20, 0x00, 0x20, 0x01, 0x6A, 0x0B  -- body
+  ]
 
 main :: IO ()
 main = do
-  withVM Nothing Nothing $ \vm -> do
-    res <- runWasmBytes vm addWasm "add" [WasmI32 40, WasmI32 2]
-    case res of
-      Right [WasmI32 ans] -> putStrLn $ "Result: " ++ show ans -- 42
-      Left err            -> putStrLn $ "Error: " ++ show err
+  result <- withVM Nothing Nothing $ \vm ->
+    runWasmBytes vm addWasm "add" [WasmI32 40, WasmI32 2]
+  case result of
+    Right [WasmI32 ans] -> putStrLn $ "Result: 40 + 2 = " ++ show ans -- 42
+    Left err            -> putStrLn $ "Error: " ++ show err
 ```
 
 ### 2. Export Haskell Functions to WebAssembly
@@ -105,14 +111,17 @@ main = do
         Right () <- registerModuleFromImport vm hostMod
         res <- runWasmBytes vm guestWasm "call_host" [WasmI32 99]
         print res -- Right [WasmI32 100]
-
--- Or write typed Haskell functions directly without manual WasmVal pattern matching:
-hostMod2 <- buildHostModule "host_module" $ \b -> do
-  builderAddHostFunc b "add" $ \(x :: Int32) (y :: Int32) -> pure (x + y) :: IO Int32
-  builderAddHostFunc b "print_guest" $ \frame (ptr :: Word32) (len :: Word32) -> do
-    mBytes <- readCallerMemory frame 0 ptr len
-    maybe (pure ()) print mBytes
 ```
+
+For typed host functions (no manual `WasmVal` unpacking), use `builderAddHostFunc`:
+
+```haskell
+buildHostModule "host_module" $ \b -> do
+  builderAddHostFunc b "add" $ \(x :: Int32) (y :: Int32) -> pure (x + y) :: IO Int32
+```
+
+See `cabal run wasmedge-hs-example-hostfunc` for the complete, runnable example.
+
 
 ### 3. Ahead-Of-Time (AOT) Compilation
 

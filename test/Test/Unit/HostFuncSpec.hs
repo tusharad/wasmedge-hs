@@ -10,7 +10,6 @@ import Data.Word (Word32)
 import Test.Hspec
 
 import WasmEdge
-import WasmEdge.Caller
 import WasmEdge.Function
 import WasmEdge.Module
 

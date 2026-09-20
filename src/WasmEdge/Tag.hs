@@ -1,6 +1,7 @@
 {- |
 Module      : WasmEdge.Tag
 Description : WasmEdge tag types and tag instances (Wasm exception handling proposal)
+Author      : Tushar Adhatrao <tusharadhatrao@gmail.com>
 Copyright   : (c) 2026 Tushar Adhatrao
 License     : MIT
 Stability   : stable

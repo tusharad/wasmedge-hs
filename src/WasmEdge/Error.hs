@@ -28,13 +28,17 @@ module WasmEdge.Error
   , isSuccess
   , isUserError
   , formatError
+
+    -- * Convenience
+  , throwOnLeft
   ) where
 
 import Control.DeepSeq (NFData)
-import Control.Exception (Exception)
+import Control.Exception (Exception, throwIO)
 import Data.Text (Text)
 import Data.Word (Word32)
 import GHC.Generics (Generic)
+import Numeric (showHex)
 
 -- ---------------------------------------------------------------------------
 -- Error category
@@ -84,8 +88,7 @@ data WasmEdgeError = WasmEdgeError
 -- ---------------------------------------------------------------------------
 
 {- | A computation that may return a 'WasmEdgeError'.
-Use 'Control.Exception.try' or 'Control.Monad.Except.runExceptT'
-to handle errors.
+Use 'throwOnLeft' to re-raise as an exception, or pattern-match directly.
 -}
 type WasmResult a = Either WasmEdgeError a
 
@@ -103,7 +106,33 @@ isSuccess e = weErrCode e == 0
 isUserError :: WasmEdgeError -> Bool
 isUserError e = weErrCategory e == ErrCategory_UserDefined
 
--- | Format a 'WasmEdgeError' into a human-readable string.
+-- | Format a 'WasmEdgeError' into a human-readable string with a hex error code.
 formatError :: WasmEdgeError -> String
 formatError e =
-  "[" ++ show (weErrCategory e) ++ " code: 0x" ++ show (weErrCode e) ++ "] " ++ show (weErrMessage e)
+  "["
+    ++ show (weErrCategory e)
+    ++ " code: 0x"
+    ++ showHex (weErrCode e) ""
+    ++ "] "
+    ++ show (weErrMessage e)
+
+-- ---------------------------------------------------------------------------
+-- Convenience
+-- ---------------------------------------------------------------------------
+
+{- | Throw a 'WasmEdgeError' as an IO exception on 'Left', or unwrap 'Right'.
+
+Useful for step-by-step WASM pipelines where you want errors to propagate
+as exceptions rather than handling them inline:
+
+@
+withVM Nothing Nothing $ \vm -> do
+  loadWasmFile vm "module.wasm" >>= throwOnLeft
+  validate vm                    >>= throwOnLeft
+  instantiate vm                 >>= throwOnLeft
+  execute vm "run" []            >>= throwOnLeft
+@
+-}
+throwOnLeft :: WasmResult a -> IO a
+throwOnLeft (Left err) = throwIO err
+throwOnLeft (Right a) = pure a

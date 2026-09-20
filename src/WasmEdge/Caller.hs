@@ -46,7 +46,7 @@ module WasmEdge.Caller
 
 import Data.ByteString (ByteString)
 import Data.ByteString qualified as BS
-import Data.Word (Word32)
+import Data.Word (Word32, Word64)
 import Foreign.Ptr (Ptr, castPtr, nullPtr)
 
 import WasmEdge.Error (ErrCategory (..), WasmEdgeError (..), WasmResult)
@@ -149,11 +149,13 @@ readCallerCStringMax frame memIdx offset maxScan = do
     Nothing -> pure Nothing
     Just mem -> do
       pageSize <- getMemoryPageSize mem
-      let totalBytes = pageSize * 65536
-      if offset >= totalBytes
+      -- 1 page = 65536 bytes. Use Word64 to avoid overflow at max page count (65536 pages = 4 GiB).
+      let totalBytes = fromIntegral pageSize * 65536 :: Word64
+          offset64 = fromIntegral offset :: Word64
+      if offset64 >= totalBytes
         then pure Nothing
         else do
-          let boundedLen = min maxScan (totalBytes - offset)
+          let boundedLen = fromIntegral (min (fromIntegral maxScan :: Word64) (totalBytes - offset64)) :: Word32
           ptr <- getMemoryPointerConst mem offset boundedLen
           if ptr == nullPtr
             then pure Nothing

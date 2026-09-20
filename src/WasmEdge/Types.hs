@@ -1,6 +1,7 @@
 {- |
 Module      : WasmEdge.Types
 Description : Core WebAssembly and WasmEdge types
+Author      : Tushar Adhatrao <tusharadhatrao@gmail.com>
 Copyright   : (c) 2026 Tushar Adhatrao
 License     : MIT
 Stability   : stable
@@ -233,10 +234,12 @@ data WasmStandard
 data HostRegistration
   = -- | Register the WASI module
     HostWASI
-  | -- | Register wasmedge_process (deprecated 0.18)
+  | -- | @wasmedge_process@ was removed in WasmEdge 0.18. Use WASI instead.
     HostWasmEdgeProcess
   deriving stock (Show, Eq, Ord, Bounded, Enum, Generic)
   deriving anyclass (NFData)
+
+{-# DEPRECATED HostWasmEdgeProcess "wasmedge_process was removed in WasmEdge 0.18. Use HostWASI instead." #-}
 
 -- ---------------------------------------------------------------------------
 -- RunMode (0.18+)

@@ -1,6 +1,7 @@
 {- |
 Module      : WasmEdge.VM
 Description : High-level WasmEdge VM context
+Author      : Tushar Adhatrao <tusharadhatrao@gmail.com>
 Copyright   : (c) 2026 Tushar Adhatrao
 License     : MIT
 Stability   : stable

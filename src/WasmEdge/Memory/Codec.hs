@@ -435,14 +435,25 @@ instance WasmMemory ByteString where
 
 {- | 'Text' — UTF-8 encoded bytes.
 
-The codec is UTF-8; invalid byte sequences are replaced with the Unicode
-replacement character on read (Lenient decoding).
+The codec is strict UTF-8: an invalid byte sequence returns @Left@ with a
+'WasmEdgeError' rather than silently replacing bytes with the replacement
+character. Use 'WasmMemory ByteString' if you need raw bytes.
 Writing empty 'Text' is a no-op (returns @Right 0@).
 -}
 instance WasmMemory Text where
   wasmPeek mem offset len = do
     res <- getMemoryData mem offset len
-    pure (fmap TE.decodeUtf8Lenient res)
+    pure $
+      res >>= \bs ->
+        case TE.decodeUtf8' bs of
+          Left unicodeEx ->
+            Left
+              ( WasmEdgeError
+                  ErrCategory_UserDefined
+                  12
+                  ("WasmMemory Text: invalid UTF-8 in guest memory: " <> T.pack (show unicodeEx))
+              )
+          Right txt -> Right txt
   wasmPoke _mem _offset t
     | T.null t = pure (Right 0)
   wasmPoke mem offset t = do

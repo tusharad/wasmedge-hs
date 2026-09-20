@@ -51,7 +51,7 @@ import Foreign.Marshal.Alloc (alloca)
 import Foreign.Ptr (FunPtr, Ptr, castPtr, nullPtr)
 import Foreign.Storable (peek)
 
-import WasmEdge.Async (Async (..), mkAsync)
+import WasmEdge.Async (Async, mkAsync)
 import WasmEdge.Configure (Configure, unsafeConfigurePtr)
 import WasmEdge.Error
 import WasmEdge.Function

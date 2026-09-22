@@ -43,6 +43,7 @@ module WasmEdge.Executor
   ) where
 
 import Control.Exception (bracket, throwIO)
+import Control.Monad (when)
 import Data.ByteString (ByteString)
 import Data.Text (Text)
 import Data.Word (Word32)
@@ -106,44 +107,48 @@ newtype ASTModule = ASTModule (OwnedCtx ASTModuleTag)
 
 -- | Load and parse an 'ASTModule' from a WASM file on disk.
 loadASTFromFile :: FilePath -> IO (WasmResult ASTModule)
-loadASTFromFile path = do
-  loader <- c_LoaderCreate nullPtr
-  if loader == nullPtr
-    then pure $ Left $ WasmEdgeError ErrCategory_WASM 0 "Failed to create Loader"
-    else alloca $ \astOut ->
-      withCString path $ \cPath ->
-        allocaCResult $ \resPtr -> do
-          c_LoaderParseFromFile resPtr loader astOut cPath
-          res <- checkResult resPtr
-          appFunPtr c_LoaderDelete loader
-          case res of
-            Left err -> pure (Left err)
-            Right () -> do
-              astPtr <- peek astOut
-              if astPtr == nullPtr
-                then pure $ Left $ WasmEdgeError ErrCategory_WASM 0 "Parsed ASTModule is NULL"
-                else Right . ASTModule <$> mkOwned (appFunPtr c_ASTModuleDelete) astPtr
+loadASTFromFile path =
+  bracket
+    (c_LoaderCreate nullPtr)
+    (\loader -> when (loader /= nullPtr) (appFunPtr c_LoaderDelete loader))
+    $ \loader ->
+      if loader == nullPtr
+        then pure $ Left $ WasmEdgeError ErrCategory_WASM 0 "Failed to create Loader"
+        else alloca $ \astOut ->
+          withCString path $ \cPath ->
+            allocaCResult $ \resPtr -> do
+              c_LoaderParseFromFile resPtr loader astOut cPath
+              res <- checkResult resPtr
+              case res of
+                Left err -> pure (Left err)
+                Right () -> do
+                  astPtr <- peek astOut
+                  if astPtr == nullPtr
+                    then pure $ Left $ WasmEdgeError ErrCategory_WASM 0 "Parsed ASTModule is NULL"
+                    else Right . ASTModule <$> mkOwned (appFunPtr c_ASTModuleDelete) astPtr
 
 -- | Load and parse an 'ASTModule' from an in-memory WASM binary.
 loadASTFromBytes :: ByteString -> IO (WasmResult ASTModule)
-loadASTFromBytes bs = do
-  loader <- c_LoaderCreate nullPtr
-  if loader == nullPtr
-    then pure $ Left $ WasmEdgeError ErrCategory_WASM 0 "Failed to create Loader"
-    else alloca $ \astOut ->
-      withWasmBytes bs $ \bytesPtr ->
-        allocaCResult $ \resPtr -> do
-          -- Pass bytes pointer to loader
-          c_LoaderParseFromBytes resPtr loader astOut bytesPtr
-          res <- checkResult resPtr
-          appFunPtr c_LoaderDelete loader
-          case res of
-            Left err -> pure (Left err)
-            Right () -> do
-              astPtr <- peek astOut
-              if astPtr == nullPtr
-                then pure $ Left $ WasmEdgeError ErrCategory_WASM 0 "Parsed ASTModule is NULL"
-                else Right . ASTModule <$> mkOwned (appFunPtr c_ASTModuleDelete) astPtr
+loadASTFromBytes bs =
+  bracket
+    (c_LoaderCreate nullPtr)
+    (\loader -> when (loader /= nullPtr) (appFunPtr c_LoaderDelete loader))
+    $ \loader ->
+      if loader == nullPtr
+        then pure $ Left $ WasmEdgeError ErrCategory_WASM 0 "Failed to create Loader"
+        else alloca $ \astOut ->
+          withWasmBytes bs $ \bytesPtr ->
+            allocaCResult $ \resPtr -> do
+              -- Pass bytes pointer to loader
+              c_LoaderParseFromBytes resPtr loader astOut bytesPtr
+              res <- checkResult resPtr
+              case res of
+                Left err -> pure (Left err)
+                Right () -> do
+                  astPtr <- peek astOut
+                  if astPtr == nullPtr
+                    then pure $ Left $ WasmEdgeError ErrCategory_WASM 0 "Parsed ASTModule is NULL"
+                    else Right . ASTModule <$> mkOwned (appFunPtr c_ASTModuleDelete) astPtr
 
 -- | Delete an 'ASTModule'.
 deleteASTModule :: ASTModule -> IO ()
@@ -156,15 +161,16 @@ withASTModule ast = bracket (pure ast) deleteASTModule
 -- | Validate an 'ASTModule'.
 validateAST :: ASTModule -> IO (WasmResult ())
 validateAST (ASTModule o) =
-  withOwned o $ \astPtr -> do
-    val <- c_ValidatorCreate nullPtr
-    if val == nullPtr
-      then pure $ Left $ WasmEdgeError ErrCategory_WASM 0 "Failed to create Validator"
-      else allocaCResult $ \resPtr -> do
-        c_ValidatorValidate resPtr val astPtr
-        res <- checkResult resPtr
-        appFunPtr c_ValidatorDelete val
-        pure res
+  withOwned o $ \astPtr ->
+    bracket
+      (c_ValidatorCreate nullPtr)
+      (\val -> when (val /= nullPtr) (appFunPtr c_ValidatorDelete val))
+      $ \val ->
+        if val == nullPtr
+          then pure $ Left $ WasmEdgeError ErrCategory_WASM 0 "Failed to create Validator"
+          else allocaCResult $ \resPtr -> do
+            c_ValidatorValidate resPtr val astPtr
+            checkResult resPtr
 
 -- ---------------------------------------------------------------------------
 -- Instantiation and registration

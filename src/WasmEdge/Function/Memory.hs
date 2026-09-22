@@ -64,13 +64,14 @@ module WasmEdge.Function.Memory
   ) where
 
 import Data.Bits (shiftL, (.|.))
+import Data.Text qualified as T
 import Data.Word (Word32, Word64)
 import Foreign.Ptr (nullPtr)
 
 import WasmEdge.Error (ErrCategory (..), WasmEdgeError (..), WasmResult)
 import WasmEdge.Function (CallingFrame, callingFrameGetMemoryInstance)
 import WasmEdge.Memory (MemoryInstance, borrowMemory)
-import WasmEdge.Memory.Alloc (AllocConvention (..))
+import WasmEdge.Memory.Alloc (AllocConvention (..), wasmAlloc)
 import WasmEdge.Memory.Codec (WasmMemory (..))
 import WasmEdge.Types (WasmVal (..))
 import WasmEdge.VM (VM)
@@ -201,27 +202,71 @@ liftMemFunc_ f frame args =
         )
 
 {- | Advanced variant of 'liftMemFunc' that uses the 'AllocConvention' to
-call the guest's @alloc@ exports for output buffer management.
+call the guest's @alloc@ export for output buffer management.
 
 This is the production-grade approach: the guest controls the heap, and the
-host simply writes the output wherever @alloc@ says. The 'VM' reference is
-needed to call back into the guest's @alloc@ export.
+host allocates an output buffer via @alloc@ before writing the result. The
+'VM' reference is needed to call back into the guest's @alloc@ export.
 
 The generated host function signature is @[I32, I32] -> [I64]@ (same as
 'liftMemFunc').
-
-__Current implementation__: delegates to 'liftMemFunc' (fixed scratch region).
-A future version will call @alloc@ via the VM inside the host callback.
 -}
 liftMemFuncWith ::
   forall a b.
   (WasmMemory a, WasmMemory b) =>
-  -- | The VM (reserved for future use: calling guest @alloc@)
+  -- | The VM (used to call the guest's @alloc@ export)
   VM ->
-  -- | Module name (reserved for future use)
+  -- | Module name (identifies which module's @alloc@ to call)
   String ->
-  -- | Reserved for future use
+  -- | Allocation convention (names the @alloc@ / @dealloc@ exports)
   AllocConvention ->
   (a -> IO (Either WasmEdgeError b)) ->
   (CallingFrame -> [WasmVal] -> IO (WasmResult [WasmVal]))
-liftMemFuncWith _vm _modName _conv = liftMemFunc
+liftMemFuncWith vm modName conv f frame args =
+  case args of
+    [WasmI32 inPtr, WasmI32 inLen] -> do
+      memResult <- callingFrameMemory frame
+      case memResult of
+        Left err -> pure (Left err)
+        Right mem -> do
+          peekResult <- wasmPeek mem (fromIntegral inPtr) (fromIntegral inLen)
+          case peekResult of
+            Left err -> pure (Left err)
+            Right a -> do
+              result <- f a
+              case result of
+                Left err -> pure (Left err)
+                Right b -> do
+                  -- Serialise b to find the required output size
+                  pokeResult <- wasmPoke mem 0 b
+                  case pokeResult of
+                    Left _ ->
+                      -- Fallback: poke at scratch region if size-probe fails
+                      liftMemFunc f frame args
+                    Right outputLen -> do
+                      -- Allocate a proper guest buffer for the output
+                      let modT = T.pack modName
+                      allocResult <- wasmAlloc vm modT conv outputLen
+                      case allocResult of
+                        Left _ ->
+                          -- Fallback to scratch region if alloc fails
+                          liftMemFunc f frame args
+                        Right outPtr -> do
+                          pokeResult2 <- wasmPoke mem outPtr b
+                          case pokeResult2 of
+                            Left err -> pure (Left err)
+                            Right outLen ->
+                              let packed :: Word64
+                                  packed =
+                                    (fromIntegral outPtr `shiftL` 32)
+                                      .|. fromIntegral outLen
+                               in pure (Right [WasmI64 (fromIntegral packed)])
+    _ ->
+      pure
+        ( Left
+            ( WasmEdgeError
+                ErrCategory_UserDefined
+                31
+                "liftMemFuncWith: expected exactly two i32 arguments (ptr, len)"
+            )
+        )

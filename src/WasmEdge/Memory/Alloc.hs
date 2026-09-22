@@ -68,6 +68,7 @@ module WasmEdge.Memory.Alloc
   ) where
 
 import Data.Bits (shiftR, (.&.))
+import Data.Int (Int32)
 import Data.Text (Text)
 import Data.Text qualified as T
 import Data.Word (Word32, Word64)
@@ -385,7 +386,9 @@ decodeResult PackedI64 [WasmI64 packed] =
       len = fromIntegral ((fromIntegral packed :: Word64) .&. 0xFFFFFFFF) :: Word32
    in Right (ptr, len)
 decodeResult SeparateI32s [WasmI32 ptr, WasmI32 len] =
-  Right (fromIntegral ptr, fromIntegral len)
+  -- fromIntegral @Int32 @Word32 wraps negative values correctly:
+  -- e.g. -1 (all-ones) -> 0xFFFFFFFF = 4294967295, which is a valid WASM ptr.
+  Right (fromIntegral (ptr :: Int32), fromIntegral (len :: Int32))
 decodeResult enc vals =
   Left
     ( WasmEdgeError

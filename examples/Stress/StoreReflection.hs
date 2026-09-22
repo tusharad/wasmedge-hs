@@ -86,7 +86,7 @@ runStoreReflectionSuite = do
   memInst <- createMemory memType
   deleteMemoryType memType
 
-  tabType <- createTableType FuncRef (Limit 5 (Just 20) False)
+  tabType <- createTableType FuncRefT (Limit 5 (Just 20) False)
   tabInst <- createTable tabType
   deleteTableType tabType
 

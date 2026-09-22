@@ -67,7 +67,7 @@ runTableIndirectSuite = do
   -- 1. TableType creation & inspection
   putStrLn "[1/6] Creating TableType (FuncRef, min=10, max=100)..."
   let initialLimit = Limit {limitMin = 10, limitMax = Just 100, limitShared = False}
-  tt <- createTableType FuncRef initialLimit
+  tt <- createTableType FuncRefT initialLimit
 
   refTy <- getTableTypeRefType tt
   lim <- getTableTypeLimit tt
@@ -76,22 +76,22 @@ runTableIndirectSuite = do
     (show refTy)
     (limitMin lim)
     (show (limitMax lim))
-  unless (refTy == FuncRef && limitMin lim == 10 && limitMax lim == Just 100) $
+  unless (refTy == FuncRefT && limitMin lim == 10 && limitMax lim == Just 100) $
     fail "TableType metadata does not match configured properties!"
 
   -- 2. Scoped TableType & withTable test
   putStrLn "[2/6] Verifying scoped withTableType & withTable lifecycle..."
-  scopedSuccess <- withTableType ExternRef (Limit 5 Nothing False) $ \stt -> do
+  scopedSuccess <- withTableType ExternRefT (Limit 5 Nothing False) $ \stt -> do
     sttRef <- getTableTypeRefType stt
     sttLim <- getTableTypeLimit stt
-    pure (sttRef == ExternRef && limitMin sttLim == 5)
+    pure (sttRef == ExternRefT && limitMin sttLim == 5)
   unless scopedSuccess $ fail "scoped withTableType inspection failed!"
 
-  withTableSuccess <- withTableType FuncRef (Limit 2 Nothing False) $ \tmpTT ->
+  withTableSuccess <- withTableType FuncRefT (Limit 2 Nothing False) $ \tmpTT ->
     withTable tmpTT $ \tmpT -> do
       reflType <- getTableType tmpT
       reflRef <- getTableTypeRefType reflType
-      pure (reflRef == FuncRef)
+      pure (reflRef == FuncRefT)
   unless withTableSuccess $ fail "scoped withTable lifecycle failed!"
 
   -- 3. Table creation & data access
@@ -160,7 +160,7 @@ runTableIndirectSuite = do
       { tmInitialSize = initSize
       , tmGrownSize = grownSize
       , tmTableTypeMatched = True
-      , tmRefTypeMatched = refTy == FuncRef
+      , tmRefTypeMatched = refTy == FuncRefT
       , tmBoundaryTrapFired = trapFired
       , tmHostModuleBound = True
       , tmDurationSec = dur

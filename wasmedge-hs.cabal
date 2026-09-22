@@ -248,6 +248,7 @@ executable wasmedge-hs-example-hostfunc
       wasmedge-hs
     , base
     , bytestring
+    , text
 
 executable wasmedge-hs-example-aot
   import:          defaults

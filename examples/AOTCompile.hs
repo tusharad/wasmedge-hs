@@ -1,3 +1,4 @@
+{-# LANGUAGE ImportQualifiedPost #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Main (main) where
@@ -71,5 +72,5 @@ main = do
         putStrLn "Compiling WASM bytecode to native shared object..."
         res <- compileBytes compiler addWasm outSo
         case res of
-          Left err -> putStrLn $ "AOT Compilation error: " ++ show (formatError err)
+          Left err -> putStrLn $ "AOT Compilation error: " ++ formatError err
           Right () -> putStrLn $ "AOT Compilation succeeded! Output written to: " ++ outSo

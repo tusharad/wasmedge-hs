@@ -57,8 +57,8 @@ encodeValType vt action = allocaCValType $ \p -> do
     F32 -> c_ValTypeGenF32 p
     F64 -> c_ValTypeGenF64 p
     V128 -> c_ValTypeGenV128 p
-    FuncRef -> c_ValTypeGenFuncRef p
-    ExternRef -> c_ValTypeGenExternRef p
+    FuncRefT -> c_ValTypeGenFuncRef p
+    ExternRefT -> c_ValTypeGenExternRef p
   action p
 
 -- | Allocate a stack array of 'CValType_' from a '[ValType]'.
@@ -92,8 +92,8 @@ peekValTypes arr n =
         | toBool isF32 -> F32
         | toBool isF64 -> F64
         | toBool isV128 -> V128
-        | toBool isFR -> FuncRef
-        | toBool isER -> ExternRef
+        | toBool isFR -> FuncRefT
+        | toBool isER -> ExternRefT
         | otherwise -> I32 -- should not happen
 
 toBool :: CBool -> Bool

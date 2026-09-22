@@ -1,3 +1,4 @@
+{-# LANGUAGE ImportQualifiedPost #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Main (main) where
@@ -66,6 +67,6 @@ main = do
     putStrLn "Executing 'add(40, 2)' via WasmEdge VM..."
     result <- runWasmBytes vm addWasm "add" [WasmI32 40, WasmI32 2]
     case result of
-      Left err -> putStrLn $ "Execution failed: " ++ show (formatError err)
+      Left err -> putStrLn $ "Execution failed: " ++ formatError err
       Right [WasmI32 val] -> putStrLn $ "Result: 40 + 2 = " ++ show val
       Right vals -> putStrLn $ "Unexpected return: " ++ show vals

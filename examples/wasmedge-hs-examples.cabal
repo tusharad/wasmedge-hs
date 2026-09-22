@@ -1,0 +1,95 @@
+cabal-version: 1.12
+
+-- This file has been generated from package.yaml by hpack version 0.39.6.
+--
+-- see: https://github.com/sol/hpack
+
+name:           wasmedge-hs-examples
+version:        0.1.0.0
+synopsis:       Examples for the wasmedge-hs Haskell bindings
+description:    A collection of standalone examples demonstrating how to use the wasmedge-hs
+                library: running WASM modules, writing host functions, AOT compilation, and
+                plugin discovery.
+                Please see the README on GitHub at <https://github.com/tusharad/wasmedge-hs/tree/main/examples#readme>
+homepage:       https://github.com/tusharad/wasmedge-hs#readme
+bug-reports:    https://github.com/tusharad/wasmedge-hs/issues
+author:         Tushar Adhatrao
+maintainer:     tusharadhatrao@gmail.com
+copyright:      2026 Tushar Adhatrao
+license:        MIT
+license-file:   LICENSE
+build-type:     Simple
+extra-source-files:
+    README.md
+    CHANGELOG.md
+
+source-repository head
+  type: git
+  location: https://github.com/tusharad/wasmedge-hs
+  subdir: examples
+
+executable wasmedge-hs-example-aot
+  main-is: Main.hs
+  other-modules:
+      Paths_wasmedge_hs_examples
+  hs-source-dirs:
+      app/aot
+  default-extensions:
+      ImportQualifiedPost
+  ghc-options: -Wall -Wcompat -Widentities -Wredundant-constraints -Wmissing-export-lists -Wno-unused-do-bind -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      base >=4.18 && <5
+    , bytestring
+    , filepath
+    , temporary
+    , text
+    , wasmedge-hs
+  default-language: GHC2021
+
+executable wasmedge-hs-example-hello
+  main-is: Main.hs
+  other-modules:
+      Paths_wasmedge_hs_examples
+  hs-source-dirs:
+      app/hello
+  default-extensions:
+      ImportQualifiedPost
+  ghc-options: -Wall -Wcompat -Widentities -Wredundant-constraints -Wmissing-export-lists -Wno-unused-do-bind -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      base >=4.18 && <5
+    , bytestring
+    , text
+    , wasmedge-hs
+  default-language: GHC2021
+
+executable wasmedge-hs-example-hostfunc
+  main-is: Main.hs
+  other-modules:
+      Paths_wasmedge_hs_examples
+  hs-source-dirs:
+      app/hostfunc
+  default-extensions:
+      ImportQualifiedPost
+  ghc-options: -Wall -Wcompat -Widentities -Wredundant-constraints -Wmissing-export-lists -Wno-unused-do-bind -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      base >=4.18 && <5
+    , bytestring
+    , text
+    , wasmedge-hs
+  default-language: GHC2021
+
+executable wasmedge-hs-example-plugin
+  main-is: Main.hs
+  other-modules:
+      Paths_wasmedge_hs_examples
+  hs-source-dirs:
+      app/plugin
+  default-extensions:
+      ImportQualifiedPost
+  ghc-options: -Wall -Wcompat -Widentities -Wredundant-constraints -Wmissing-export-lists -Wno-unused-do-bind -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      base >=4.18 && <5
+    , bytestring
+    , text
+    , wasmedge-hs
+  default-language: GHC2021

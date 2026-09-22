@@ -113,10 +113,10 @@ data ValType
     F64
   | -- | 128-bit SIMD vector
     V128
-  | -- | Function reference
-    FuncRef
-  | -- | External reference
-    ExternRef
+  | -- | Function reference (@funcref@)
+    FuncRefT
+  | -- | External reference (@externref@)
+    ExternRefT
   deriving stock (Show, Eq, Ord, Bounded, Enum, Generic)
   deriving anyclass (NFData)
 

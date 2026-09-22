@@ -1,3 +1,5 @@
+{-# LANGUAGE ImportQualifiedPost #-}
+
 {- |
 Module      : WasmBytecode
 Description : Pre-compiled binary WebAssembly modules for stress testing and verification

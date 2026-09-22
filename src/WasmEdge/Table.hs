@@ -93,7 +93,7 @@ getTableTypeRefType (TableType o) =
       types <- peekValTypes vtPtr 1
       case types of
         (t : _) -> pure t
-        [] -> pure FuncRef
+        [] -> pure FuncRefT
 
 -- | Get the 'Limit' of a 'TableType'.
 getTableTypeLimit :: TableType -> IO Limit

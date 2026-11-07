@@ -1,0 +1,79 @@
+name: Deploy Documentation to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  build-and-deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up GHC 9.10 + Cabal
+        uses: haskell-actions/setup@v2
+        with:
+          ghc-version: '9.10.1'
+          cabal-version: '3.12.1.0'
+
+      - name: Cache Cabal store
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cabal/store
+            dist-newstyle
+          key: ${{ runner.os }}-ghc-9.10.1-pages-${{ hashFiles('wasmedge-hs.cabal') }}
+          restore-keys: |
+            ${{ runner.os }}-ghc-9.10.1-pages-
+
+      - name: Install WasmEdge 0.17.1
+        run: |
+          curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh \
+            | sudo bash -s -- -v 0.17.1 -p /usr/local
+          sudo ldconfig
+          echo "LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH"   >> $GITHUB_ENV
+          echo "LIBRARY_PATH=/usr/local/lib:$LIBRARY_PATH"         >> $GITHUB_ENV
+          echo "C_INCLUDE_PATH=/usr/local/include:$C_INCLUDE_PATH" >> $GITHUB_ENV
+
+      - name: cabal update
+        run: cabal update
+
+      - name: Build Haddock HTML
+        run: cabal haddock --enable-doc --haddock-html
+
+      - name: Collect docs
+        run: |
+          mkdir -p _site
+          DOC_DIR=$(find dist-newstyle -type d -name 'html' | head -n 1)
+          if [ -d "${DOC_DIR}" ]; then
+            cp -r "${DOC_DIR}/." _site/
+          else
+            find dist-newstyle -type d -name 'wasmedge-hs-*' | head -n 1 | xargs -I{} cp -r {}/. _site/
+          fi
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - id: deployment
+        name: Deploy to GitHub Pages
+        uses: actions/deploy-pages@v4

@@ -44,7 +44,7 @@ brew install wasmedge
 **Linux**
 ```bash
 curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh \
-  | sudo bash -s -- -v 0.17.1 -p /usr/local
+  | sudo bash -s -- -v 0.18.1 -p /usr/local
 ```
 
 ### 2. Add `wasmedge-hs` to your project
@@ -52,7 +52,7 @@ curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/insta
 **Cabal** (`cabal.project` / `.cabal`):
 ```cabal
 -- your-package.cabal
-build-depends: wasmedge-hs >= 0.17.1 && < 0.18
+build-depends: wasmedge-hs >= 0.18.1 && < 0.19
 ```
 
 ```bash
@@ -63,7 +63,7 @@ cabal test
 **Stack** (`stack.yaml`):
 ```yaml
 extra-deps:
-  - wasmedge-hs-0.17.1.0
+  - wasmedge-hs-0.18.1.0
 ```
 
 ```bash

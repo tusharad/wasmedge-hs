@@ -11,6 +11,17 @@ _(nothing yet — open a PR against `develop`)_
 
 ---
 
+## [0.18.1.0] - 2026-11-08
+
+### Changed
+- Target runtime upgraded to **WasmEdge 0.18.1**.
+- Verified all 86 unit and property tests against WasmEdge 0.18.1 C headers and shared libraries.
+- Updated `VersionSpec` suite to assert WasmEdge 0.18.1 ABI compatibility (`minor == 18`, `patch == 1`).
+- Updated CI/CD matrix and deployment environments to install WasmEdge 0.18.1.
+- Updated package metadata and Cabal source repository stanzas.
+
+---
+
 ## [0.17.1.0] - 2026-11-07
 
 **Initial public release.** Ground-up rewrite of Haskell bindings for WasmEdge 0.17.1.
@@ -64,5 +75,6 @@ _(nothing yet — open a PR against `develop`)_
 
 ---
 
-[Unreleased]: https://github.com/tusharad/wasmedge-hs/compare/v0.17.1.0...HEAD
+[Unreleased]: https://github.com/tusharad/wasmedge-hs/compare/v0.18.1.0...HEAD
+[0.18.1.0]: https://github.com/tusharad/wasmedge-hs/compare/v0.17.1.0...v0.18.1.0
 [0.17.1.0]: https://github.com/tusharad/wasmedge-hs/releases/tag/v0.17.1.0

@@ -17,7 +17,7 @@ set up, our coding standards, and the process for submitting pull requests.
    ghcup install stack
    ```
 
-2. **WasmEdge 0.17.1**:
+2. **WasmEdge 0.18.1**:
 
    On macOS (Homebrew):
    ```bash
@@ -27,7 +27,7 @@ set up, our coding standards, and the process for submitting pull requests.
    On Linux:
    ```bash
    curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh \
-     | sudo bash -s -- -v 0.17.1 -p /usr/local
+     | sudo bash -s -- -v 0.18.1 -p /usr/local
    sudo ldconfig
    ```
 

@@ -1,16 +1,16 @@
 cabal-version:   3.4
 name:            wasmedge-hs
-version:         0.17.1.0
+version:         0.18.1.0
 
 synopsis:
-  Haskell bindings for the WasmEdge WebAssembly runtime
+  Haskell FFI bindings for the WasmEdge 0.18 WebAssembly runtime
 
 description:
   Comprehensive, type-safe Haskell FFI bindings for the WasmEdge C API.
-  .
+
   Features:
-  .
-  * Full coverage of the WasmEdge 0.17.x C API
+
+  * Full coverage of the WasmEdge 0.18.x C API
   * Two-layer design: raw FFI layer + safe idiomatic public API
   * Phantom-typed ownership model — no double-frees or use-after-free
   * @bracket@-style resource management compatible with @MonadUnliftIO@
@@ -45,6 +45,10 @@ extra-source-files:
   cbits/wasmedge_hs_shims.c
   cbits/wasmedge_hs_int128.c
   include/wasmedge_hs.h
+
+source-repository head
+  type:     git
+  location: https://github.com/tusharad/wasmedge-hs.git
 
 -- -------------------------------------------------------------------------
 -- Flags

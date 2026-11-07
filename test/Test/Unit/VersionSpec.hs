@@ -22,11 +22,11 @@ spec = describe "WasmEdge version" $ do
     major <- c_VersionGetMajor
     major `shouldBe` 0
 
-  it "VersionGetMinor returns 17 for WasmEdge 0.17.1" $ do
+  it "VersionGetMinor returns 18 for WasmEdge 0.18.1" $ do
     minor <- c_VersionGetMinor
-    minor `shouldBe` 17
+    minor `shouldBe` 18
 
-  it "VersionGetPatch returns 1 for WasmEdge 0.17.1" $ do
+  it "VersionGetPatch returns 1 for WasmEdge 0.18.1" $ do
     patch <- c_VersionGetPatch
     patch `shouldBe` 1
 

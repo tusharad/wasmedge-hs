@@ -16,15 +16,15 @@ bench:
 
 ## Run HLint linter
 lint:
-	hlint src/ test/
+	hlint src/ test/ examples/
 
 ## Format source code with Fourmolu
 format:
-	fourmolu -i src/ test/
+	fourmolu -i src/ test/ examples/
 
 ## Check code formatting with Fourmolu
 format-check:
-	fourmolu -m check src/ test/
+	fourmolu -m check src/ test/ examples/
 
 ## Build Haddock documentation
 docs:

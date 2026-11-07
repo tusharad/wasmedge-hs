@@ -3,8 +3,11 @@
 Type-safe, idiomatic, high-performance Haskell FFI bindings for the [WasmEdge](https://wasmedge.org) WebAssembly runtime.
 
 [![Build & Test](https://github.com/tusharad/wasmedge-hs/actions/workflows/ci.yml/badge.svg)](https://github.com/tusharad/wasmedge-hs/actions/workflows/ci.yml)
+[![Release](https://github.com/tusharad/wasmedge-hs/actions/workflows/release.yml/badge.svg)](https://github.com/tusharad/wasmedge-hs/actions/workflows/release.yml)
 [![Hackage](https://img.shields.io/hackage/v/wasmedge-hs.svg)](https://hackage.haskell.org/package/wasmedge-hs)
+[![Hackage Deps](https://img.shields.io/hackage-deps/v/wasmedge-hs.svg)](https://hackage.haskell.org/package/wasmedge-hs)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Haddock](https://img.shields.io/badge/docs-Haddock-blue.svg)](https://tusharad.github.io/wasmedge-hs/)
 
 ---
 
@@ -31,19 +34,38 @@ Type-safe, idiomatic, high-performance Haskell FFI bindings for the [WasmEdge](h
 
 ## Installation & Prerequisites
 
-Ensure that the WasmEdge C library is installed on your system:
+### 1. Install the WasmEdge C runtime
 
-### macOS (Homebrew)
+**macOS (Homebrew)**
 ```bash
 brew install wasmedge
 ```
 
-### Linux
+**Linux**
 ```bash
-curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh | bash
+curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh \
+  | sudo bash -s -- -v 0.17.1 -p /usr/local
 ```
 
-### Building with Stack
+### 2. Add `wasmedge-hs` to your project
+
+**Cabal** (`cabal.project` / `.cabal`):
+```cabal
+-- your-package.cabal
+build-depends: wasmedge-hs >= 0.17.1 && < 0.18
+```
+
+```bash
+cabal build
+cabal test
+```
+
+**Stack** (`stack.yaml`):
+```yaml
+extra-deps:
+  - wasmedge-hs-0.17.1.0
+```
+
 ```bash
 # Default build (LTS 22 / GHC 9.6.6)
 stack build
@@ -68,17 +90,23 @@ import qualified Data.ByteString as BS
 import WasmEdge.VM
 import WasmEdge.Types
 
--- WASM bytecode defining: add(a, b) -> a + b
+-- Minimal WebAssembly module implementing: add(a: i32, b: i32) -> i32
 addWasm :: BS.ByteString
-addWasm = ...
+addWasm = BS.pack
+  [ 0x00, 0x61, 0x73, 0x6D, 0x01, 0x00, 0x00, 0x00  -- magic + version
+  , 0x01, 0x07, 0x01, 0x60, 0x02, 0x7F, 0x7F, 0x01, 0x7F  -- type: (i32, i32) -> i32
+  , 0x03, 0x02, 0x01, 0x00                              -- function section
+  , 0x07, 0x07, 0x01, 0x03, 0x61, 0x64, 0x64, 0x00, 0x00  -- export "add"
+  , 0x0A, 0x09, 0x01, 0x07, 0x00, 0x20, 0x00, 0x20, 0x01, 0x6A, 0x0B  -- body
+  ]
 
 main :: IO ()
 main = do
-  withVM Nothing Nothing $ \vm -> do
-    res <- runWasmBytes vm addWasm "add" [WasmI32 40, WasmI32 2]
-    case res of
-      Right [WasmI32 ans] -> putStrLn $ "Result: " ++ show ans -- 42
-      Left err            -> putStrLn $ "Error: " ++ show err
+  result <- withVM Nothing Nothing $ \vm ->
+    runWasmBytes vm addWasm "add" [WasmI32 40, WasmI32 2]
+  case result of
+    Right [WasmI32 ans] -> putStrLn $ "Result: 40 + 2 = " ++ show ans -- 42
+    Left err            -> putStrLn $ "Error: " ++ show err
 ```
 
 ### 2. Export Haskell Functions to WebAssembly
@@ -105,14 +133,17 @@ main = do
         Right () <- registerModuleFromImport vm hostMod
         res <- runWasmBytes vm guestWasm "call_host" [WasmI32 99]
         print res -- Right [WasmI32 100]
-
--- Or write typed Haskell functions directly without manual WasmVal pattern matching:
-hostMod2 <- buildHostModule "host_module" $ \b -> do
-  builderAddHostFunc b "add" $ \(x :: Int32) (y :: Int32) -> pure (x + y) :: IO Int32
-  builderAddHostFunc b "print_guest" $ \frame (ptr :: Word32) (len :: Word32) -> do
-    mBytes <- readCallerMemory frame 0 ptr len
-    maybe (pure ()) print mBytes
 ```
+
+For typed host functions (no manual `WasmVal` unpacking), use `builderAddHostFunc`:
+
+```haskell
+buildHostModule "host_module" $ \b -> do
+  builderAddHostFunc b "add" $ \(x :: Int32) (y :: Int32) -> pure (x + y) :: IO Int32
+```
+
+See `cabal run wasmedge-hs-example-hostfunc` for the complete, runnable example.
+
 
 ### 3. Ahead-Of-Time (AOT) Compilation
 
@@ -136,18 +167,33 @@ compileToNative = do
 
 ## Examples
 
-Run any of the included examples using `cabal run`:
+Run any of the included examples:
 
-- `cabal run wasmedge-hs-example-hello`: Minimal WASM execution
-- `cabal run wasmedge-hs-example-hostfunc`: Calling Haskell callbacks from WebAssembly
-- `cabal run wasmedge-hs-example-plugin`: Dynamic plugin discovery and module introspection
-- `cabal run wasmedge-hs-example-aot`: AOT compilation of bytecode to optimized native code
+```bash
+# Cabal
+cabal run wasmedge-hs-example-hello
+cabal run wasmedge-hs-example-hostfunc
+cabal run wasmedge-hs-example-plugin
+cabal run wasmedge-hs-example-aot
+
+# Stack
+stack run wasmedge-hs-example-hello
+```
+
+- **`hello`** — Minimal WASM execution (add two i32 values)
+- **`hostfunc`** — Calling Haskell callbacks from WebAssembly
+- **`plugin`** — Dynamic plugin discovery and module introspection
+- **`aot`** — AOT compilation of bytecode to optimized native code
 
 ---
 
 ## Benchmarks
 
-Microbenchmarks are implemented using Criterion (`cabal run wasmedge-hs-bench --enable-benchmarks`):
+Microbenchmarks with Criterion:
+
+```bash
+cabal run wasmedge-hs-bench --enable-benchmarks
+```
 
 | Benchmark Scenario | Mean Latency |
 | :--- | :--- |
@@ -158,13 +204,55 @@ Microbenchmarks are implemented using Criterion (`cabal run wasmedge-hs-bench --
 
 ---
 
+## Supported GHC Versions
+
+| GHC | Stackage LTS | Status |
+| :--- | :--- | :--- |
+| 9.6.6 | LTS 22 | ✅ Tested |
+| 9.8.4 | LTS 23 | ✅ Tested |
+| 9.10.1 | LTS 24 | ✅ Tested |
+| 9.12.x | Nightly | 🧪 Experimental |
+
+---
+
 ## Documentation
 
+- [Haddock API Docs](https://tusharad.github.io/wasmedge-hs/) (GitHub Pages)
+- [Hackage Package Page](https://hackage.haskell.org/package/wasmedge-hs)
 - [Architecture Design](docs/ARCHITECTURE.md)
 - [Backwards Compatibility Guidelines](docs/BACKWARDS_COMPAT.md)
 - [Maintenance & Upgrades](docs/MAINTAINING.md)
 - [Contributing Guide](docs/CONTRIBUTING.md)
 - [Changelog](CHANGELOG.md)
+
+---
+
+## Branching Strategy
+
+| Branch | Purpose |
+| :--- | :--- |
+| `main` | Stable, release-tagged. Only release commits land here. |
+| `develop` | Integration branch. All PRs target `develop` first. |
+| `feat/*` | Feature branches — merge into `develop` via PR. |
+| `fix/*` | Bug-fix branches — merge into `develop` via PR. |
+| `chore/*` | Infrastructure, docs, CI changes. |
+
+Releases are created by merging `develop → main`, then pushing an annotated tag `v<version>`.
+
+---
+
+## Contributing
+
+See [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) for the full guide.
+Quick start:
+
+```bash
+git clone https://github.com/tusharad/wasmedge-hs
+cd wasmedge-hs
+brew install wasmedge        # macOS
+stack build
+stack test
+```
 
 ---
 

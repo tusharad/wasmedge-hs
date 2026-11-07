@@ -44,7 +44,7 @@ import WasmEdge.Internal.Ownership (BorrowedCtx (..))
 import WasmEdge.Internal.Storable (CString_, allocaCString, stringSize)
 import WasmEdge.Internal.Types (PluginTag)
 import WasmEdge.Internal.Utils (peekWasmString, withWasmString)
-import WasmEdge.Module (ModuleInstance (..), borrowModule)
+import WasmEdge.Module (ModuleInstance (..), ownModule)
 
 -- ---------------------------------------------------------------------------
 -- Plugin discovery
@@ -111,7 +111,7 @@ createPluginModule (Plugin (BorrowedCtx p)) modName =
     mPtr <- c_PluginCreateModule p namePtr
     if mPtr == nullPtr
       then pure Nothing
-      else Just <$> borrowModule mPtr
+      else Just <$> ownModule mPtr
 
 -- | Initialize WASI-NN with pre-loaded neural network model paths.
 initWASINN :: [Text] -> IO ()

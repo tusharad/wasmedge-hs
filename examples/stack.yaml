@@ -1,0 +1,24 @@
+# Stack configuration for wasmedge-hs examples
+# Standalone project that depends on wasmedge-hs from the parent directory.
+
+snapshot:
+  url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/lts/22/44.yaml
+
+packages:
+  - .
+
+extra-deps:
+  - ../
+
+# WasmEdge C API headers and libraries
+extra-include-dirs:
+  - /opt/homebrew/include
+  - /usr/local/include
+  - /usr/include
+
+extra-lib-dirs:
+  - /opt/homebrew/lib
+  - /usr/local/lib
+  - /usr/lib
+
+allow-newer: true

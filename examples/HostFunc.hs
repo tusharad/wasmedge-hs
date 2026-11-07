@@ -1,10 +1,12 @@
+{-# LANGUAGE ImportQualifiedPost #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Main (main) where
 
 import Data.ByteString qualified as BS
+import Data.Text qualified as T
 import System.IO (BufferMode (..), hSetBuffering, stdout)
-import WasmEdge.Error (WasmResult, formatError)
+import WasmEdge.Error (ErrCategory (..), WasmEdgeError (..), WasmResult, formatError)
 import WasmEdge.Function
 import WasmEdge.Module
 import WasmEdge.Types
@@ -98,8 +100,10 @@ haskellAddOne _ [WasmI32 n] = do
   let result = n + 1
   putStrLn $ "  [Haskell HostFunc] Returning incremented value: " ++ show result
   pure $ Right [WasmI32 result]
-haskellAddOne _ args = do
-  pure $ Right args
+haskellAddOne _ args =
+  pure $
+    Left $
+      WasmEdgeError ErrCategory_UserDefined 2 ("add_one: unexpected arguments: " <> T.pack (show args))
 
 main :: IO ()
 main = do
@@ -122,12 +126,12 @@ main = do
         putStrLn "Step 5: registering host module"
         regRes <- registerModuleFromImport vm hostMod
         case regRes of
-          Left err -> putStrLn $ "Registration failed: " ++ show (formatError err)
+          Left err -> putStrLn $ "Registration failed: " ++ formatError err
           Right () -> do
             putStrLn "Host module registered successfully."
             putStrLn "Executing guest WASM function 'call_host(99)'..."
             res <- runWasmBytes vm guestWasm "call_host" [WasmI32 99]
             case res of
-              Left err -> putStrLn $ "Execution failed: " ++ show (formatError err)
+              Left err -> putStrLn $ "Execution failed: " ++ formatError err
               Right [WasmI32 ans] -> putStrLn $ "Final result from WASM: " ++ show ans
               Right vals -> putStrLn $ "Unexpected return: " ++ show vals

@@ -306,6 +306,15 @@ void hs_WasmEdge_ExecutorRegisterImport(WasmEdge_Result *out,
   *out = WasmEdge_ExecutorRegisterImport(cxt, store, import);
 }
 
+void hs_WasmEdge_ExecutorRegisterImportWithAlias(
+    WasmEdge_Result *out,
+    WasmEdge_ExecutorContext *cxt,
+    WasmEdge_StoreContext *store,
+    const WasmEdge_ModuleInstanceContext *import,
+    const WasmEdge_String *mod_name) {
+  *out = WasmEdge_ExecutorRegisterImportWithAlias(cxt, store, import, *mod_name);
+}
+
 void hs_WasmEdge_ExecutorInvoke(WasmEdge_Result *out,
                                  WasmEdge_ExecutorContext *cxt,
                                  const WasmEdge_FunctionInstanceContext *func,

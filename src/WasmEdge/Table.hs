@@ -1,6 +1,7 @@
 {- |
 Module      : WasmEdge.Table
 Description : WasmEdge table contexts
+Author      : Tushar Adhatrao <tusharadhatrao@gmail.com>
 Copyright   : (c) 2026 Tushar Adhatrao
 License     : MIT
 Stability   : stable
@@ -58,9 +59,7 @@ import WasmEdge.Value (decodeVal, encodeVal, encodeValType, peekValTypes)
 -- TableType
 -- ---------------------------------------------------------------------------
 
-{- | A WebAssembly table type, specifying the reference type (FuncRef or ExternRef)
-and element limits.
--}
+-- | A WebAssembly table type, specifying the reference type (FuncRef or ExternRef) and element limits.
 newtype TableType = TableType (OwnedCtx TableTypeTag)
 
 -- | Create a 'TableType' with the given element reference type and 'Limit'.
@@ -94,7 +93,7 @@ getTableTypeRefType (TableType o) =
       types <- peekValTypes vtPtr 1
       case types of
         (t : _) -> pure t
-        [] -> pure FuncRef
+        [] -> pure FuncRefT
 
 -- | Get the 'Limit' of a 'TableType'.
 getTableTypeLimit :: TableType -> IO Limit

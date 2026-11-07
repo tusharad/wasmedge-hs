@@ -119,6 +119,7 @@ library
     , unliftio-core     >= 0.2    && < 0.3
     , resourcet         >= 1.3    && < 1.4
     , deepseq           >= 1.4    && < 1.6
+    , aeson             >= 2.1    && < 2.3
 
   exposed-modules:
     -- Top-level convenience re-export
@@ -139,9 +140,13 @@ library
     -- Module instances
     WasmEdge.Module
     WasmEdge.Function
+    WasmEdge.Function.Memory
     WasmEdge.Caller
     WasmEdge.Table
     WasmEdge.Memory
+    WasmEdge.Memory.Codec
+    WasmEdge.Memory.Alloc
+    WasmEdge.Bindgen
     WasmEdge.Global
     WasmEdge.Tag
     -- High-level VM
@@ -186,6 +191,8 @@ test-suite wasmedge-hs-test
     Test.Unit.VMSpec
     Test.Unit.HostFuncSpec
     Test.Unit.OwnershipSpec
+    Test.Unit.WasmMemorySpec
+    Test.Unit.LiftMemFuncSpec
     Test.Property.ValueProp
     Test.Property.StringProp
 
@@ -194,10 +201,11 @@ test-suite wasmedge-hs-test
     , base
     , hspec              >= 2.11  && < 2.12
     , hspec-core         >= 2.11  && < 2.12
-    , hedgehog           >= 1.4   && < 1.6
+    , hedgehog           >= 1.4   && < 1.8
     , hspec-hedgehog     >= 0.1   && < 0.4
     , bytestring
     , text
+    , aeson
     , filepath           >= 1.4   && < 1.6
     , temporary          >= 1.3   && < 1.4
 
@@ -240,6 +248,7 @@ executable wasmedge-hs-example-hostfunc
       wasmedge-hs
     , base
     , bytestring
+    , text
 
 executable wasmedge-hs-example-aot
   import:          defaults
@@ -260,3 +269,46 @@ executable wasmedge-hs-example-plugin
       wasmedge-hs
     , base
     , text
+
+executable wasmedge-hs-example-api-suite
+  import:          defaults
+  hs-source-dirs:  examples
+  main-is:         Stress/Main.hs
+  ghc-options:     -threaded -rtsopts "-with-rtsopts=-N"
+  other-modules:
+    Stress.Lib
+    Stress.WasmBytecode
+    Stress.AOTWorkflow
+    Stress.AsyncTimeout
+    Stress.BigMemory
+    Stress.CallerIntrospection
+    Stress.ChaosFault
+    Stress.ComplexData
+    Stress.ConcurrentPool
+    Stress.GlobalState
+    Stress.HostPipeline
+    Stress.LeakCheck
+    Stress.LoggingDiagnostic
+    Stress.LowLevelPipeline
+    Stress.PluginWorkflow
+    Stress.StatisticsCost
+    Stress.StoreReflection
+    Stress.TableIndirect
+    Stress.TagException
+    Stress.WASILifecycle
+  build-depends:
+      wasmedge-hs
+    , base
+    , bytestring
+    , text
+    , vector
+    , async
+    , stm
+    , clock
+    , cryptohash-sha256
+    , temporary
+    , filepath
+    , directory
+    , containers
+    , aeson
+

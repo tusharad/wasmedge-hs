@@ -1,6 +1,7 @@
 {- |
 Module      : WasmEdge.Statistics
 Description : WasmEdge statistics context
+Author      : Tushar Adhatrao <tusharadhatrao@gmail.com>
 Copyright   : (c) 2026 Tushar Adhatrao
 License     : MIT
 Stability   : stable

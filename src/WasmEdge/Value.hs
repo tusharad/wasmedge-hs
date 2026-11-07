@@ -3,6 +3,7 @@
 {- |
 Module      : WasmEdge.Value
 Description : Conversion between Haskell 'WasmVal' and WasmEdge C values
+Author      : Tushar Adhatrao <tusharadhatrao@gmail.com>
 Copyright   : (c) 2026 Tushar Adhatrao
 License     : MIT
 Stability   : stable
@@ -32,6 +33,7 @@ import Control.Monad (forM, forM_)
 import Data.WideWord.Int128 (Int128 (..))
 import Data.Word (Word32)
 import Foreign.C (CBool (..), CDouble (..), CFloat (..))
+import Foreign.Marshal.Alloc (alloca)
 import Foreign.Marshal.Utils (copyBytes)
 import Foreign.Ptr
 import Foreign.Storable
@@ -55,8 +57,8 @@ encodeValType vt action = allocaCValType $ \p -> do
     F32 -> c_ValTypeGenF32 p
     F64 -> c_ValTypeGenF64 p
     V128 -> c_ValTypeGenV128 p
-    FuncRef -> c_ValTypeGenFuncRef p
-    ExternRef -> c_ValTypeGenExternRef p
+    FuncRefT -> c_ValTypeGenFuncRef p
+    ExternRefT -> c_ValTypeGenExternRef p
   action p
 
 -- | Allocate a stack array of 'CValType_' from a '[ValType]'.
@@ -90,8 +92,8 @@ peekValTypes arr n =
         | toBool isF32 -> F32
         | toBool isF64 -> F64
         | toBool isV128 -> V128
-        | toBool isFR -> FuncRef
-        | toBool isER -> ExternRef
+        | toBool isFR -> FuncRefT
+        | toBool isER -> ExternRefT
         | otherwise -> I32 -- should not happen
 
 toBool :: CBool -> Bool
@@ -137,15 +139,13 @@ decodeVal p = do
       | toBool isI64 -> WasmI64 <$> c_ValueGetI64 p
       | toBool isF32 -> do CFloat v <- c_ValueGetF32 p; pure (WasmF32 v)
       | toBool isF64 -> do CDouble v <- c_ValueGetF64 p; pure (WasmF64 v)
-      | toBool isV128 -> do
-          hiPtr <- malloc
-          loPtr <- malloc
-          c_ValueGetV128 p hiPtr loPtr
-          hi <- peek hiPtr
-          lo <- peek loPtr
-          free hiPtr
-          free loPtr
-          pure $ WasmV128 (Int128 hi lo)
+      | toBool isV128 ->
+          -- Stack-allocated output pointers — exception-safe, no C heap involved.
+          alloca $ \hiPtr -> alloca $ \loPtr -> do
+            c_ValueGetV128 p hiPtr loPtr
+            hi <- peek hiPtr
+            lo <- peek loPtr
+            pure $ WasmV128 (Int128 hi lo)
       | toBool isFR -> do
           isNull <- c_ValueIsNullRef p
           if toBool isNull
@@ -177,7 +177,3 @@ peekValArray :: Ptr () -> Word32 -> IO [WasmVal]
 peekValArray arr n =
   forM [0 .. fromIntegral n - 1] $ \i ->
     decodeVal (castPtr (arr `plusPtr` (i * valueSize)))
-
--- Helper since GHC imports are needed
-foreign import ccall unsafe "malloc" malloc :: IO (Ptr a)
-foreign import ccall unsafe "free" free :: Ptr a -> IO ()

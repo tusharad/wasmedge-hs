@@ -9,7 +9,8 @@ When functions are invoked via @async*@ variants in 'WasmEdge.VM' or
 'WasmEdge.Executor', they return an 'Async' handle that can be waited on.
 -}
 module WasmEdge.Async
-  ( Async (..)
+  ( -- | An opaque handle to an asynchronous WASM execution.
+    Async
   , wait
   , waitFor
   , cancel

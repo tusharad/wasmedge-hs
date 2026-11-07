@@ -1,6 +1,7 @@
 {- |
 Module      : WasmEdge
 Description : Re-exports for convenient import of the WasmEdge Haskell bindings
+Author      : Tushar Adhatrao <tusharadhatrao@gmail.com>
 Copyright   : (c) 2026 Tushar Adhatrao
 License     : MIT
 Stability   : stable
@@ -41,6 +42,7 @@ module WasmEdge
   , WasmResult
   , ErrCategory (..)
   , formatError
+  , throwOnLeft
 
     -- * Version
   , version
@@ -50,6 +52,8 @@ module WasmEdge
 
     -- * VM (re-exported from "WasmEdge.VM")
   , VM
+  , createVM
+  , deleteVM
   , withVM
   , VMConfig (..)
   , defaultVMConfig
@@ -61,6 +65,11 @@ module WasmEdge
   , validate
   , instantiate
   , execute
+  , registerModuleFromFile
+  , registerModuleFromBytes
+  , registerModuleFromImport
+  , registerModuleFromImportWithAlias
+  , executeRegistered
 
     -- * Host Functions (re-exported from "WasmEdge.Function")
   , ToHostFunc (..)
@@ -68,6 +77,35 @@ module WasmEdge
   , WasmReturn (..)
   , createHostFunction
   , withHostFunction
+
+    -- * Complex Data & Linear Memory (re-exported from "WasmEdge.Memory.Codec" and "WasmEdge.Memory.Alloc")
+  , WasmMemory (..)
+  , FixedWasmMemory (..)
+  , WasmJSON (..)
+  , jsonWasmPoke
+  , jsonWasmPeek
+  , withWasmBuffer
+  , withWasmBuffer2
+  , wasmAlloc
+  , wasmDealloc
+  , AllocConvention (..)
+  , ResultEncoding (..)
+  , defaultConvention
+
+    -- * High-Level Guest Calling & Bindgen (re-exported from "WasmEdge.Bindgen")
+  , module WasmEdge.Bindgen
+
+    -- * Lifted Host Functions (re-exported from "WasmEdge.Function.Memory")
+  , liftMemFunc
+  , liftMemFunc_
+  , liftMemFuncWith
+  , callingFrameMemory
+
+    -- * Caller memory helpers (re-exported from "WasmEdge.Caller")
+  , getCallerMemory
+  , readCallerMemory
+  , writeCallerMemory
+  , readCallerCString
   ) where
 
 import Data.Text (Text)
@@ -75,6 +113,13 @@ import Data.Text qualified as T
 import Data.Word (Word32)
 import Foreign.C (peekCString)
 
+import WasmEdge.Bindgen
+import WasmEdge.Caller
+  ( getCallerMemory
+  , readCallerCString
+  , readCallerMemory
+  , writeCallerMemory
+  )
 import WasmEdge.Error
 import WasmEdge.Function
   ( ToHostFunc (..)
@@ -83,16 +128,45 @@ import WasmEdge.Function
   , createHostFunction
   , withHostFunction
   )
+import WasmEdge.Function.Memory
+  ( callingFrameMemory
+  , liftMemFunc
+  , liftMemFuncWith
+  , liftMemFunc_
+  )
 import WasmEdge.Internal.FFI.Basic
+import WasmEdge.Memory.Alloc
+  ( AllocConvention (..)
+  , ResultEncoding (..)
+  , defaultConvention
+  , wasmAlloc
+  , wasmDealloc
+  , withWasmBuffer
+  , withWasmBuffer2
+  )
+import WasmEdge.Memory.Codec
+  ( FixedWasmMemory (..)
+  , WasmJSON (..)
+  , WasmMemory (..)
+  , jsonWasmPeek
+  , jsonWasmPoke
+  )
 import WasmEdge.Types
 import WasmEdge.VM
   ( VM
   , VMConfig (..)
+  , createVM
   , defaultVMConfig
+  , deleteVM
   , execute
+  , executeRegistered
   , instantiate
   , loadWasmBytes
   , loadWasmFile
+  , registerModuleFromBytes
+  , registerModuleFromFile
+  , registerModuleFromImport
+  , registerModuleFromImportWithAlias
   , runWasmBytes
   , runWasmFile
   , validate
@@ -104,7 +178,7 @@ import WasmEdge.VM
 -- Version
 -- ---------------------------------------------------------------------------
 
--- | The version string of the linked WasmEdge library (e.g., @\"0.18.0\"@).
+-- | The version string of the linked WasmEdge library (e.g., @0.18.0@).
 version :: IO Text
 version = do
   cs <- c_VersionGet

@@ -117,7 +117,8 @@ allocaCValType = allocaBytes valTypeSize
 
 -- | Allocate an array of n 'CValType_' structs on the stack.
 withCValTypeArray :: Int -> (Ptr CValType_ -> IO a) -> IO a
-withCValTypeArray n = allocaBytes (n * valTypeSize)
+withCValTypeArray 0 action = action nullPtr
+withCValTypeArray n action = allocaBytes (n * valTypeSize) action
 
 -- ---------------------------------------------------------------------------
 -- WasmEdge_Value  (uint128_t Value; WasmEdge_ValType Type)

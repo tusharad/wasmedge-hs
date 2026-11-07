@@ -1,0 +1,231 @@
+name: Release to Hackage
+
+on:
+  push:
+    tags:
+      - 'v*.*.*.*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag (e.g. v0.17.1.0)'
+        required: true
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # ─────────────────────────────────────────────────────────────────
+  # 1. Lint & format gate
+  # ─────────────────────────────────────────────────────────────────
+  format:
+    name: Format check (fourmolu)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: haskell-actions/run-fourmolu@v11
+        with:
+          version: "0.17.0.0"
+          working-directory: "./src"
+
+  hlint:
+    name: HLint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: haskell-actions/hlint-setup@v2
+        with:
+          version: '3.10'
+      - uses: haskell-actions/hlint-run@v2
+        with:
+          path: src/
+          fail-on: warning
+
+  # ─────────────────────────────────────────────────────────────────
+  # 2. Build & test with Stack (LTS 24 / GHC 9.10.1)
+  # ─────────────────────────────────────────────────────────────────
+  test:
+    name: Test suite (Stack LTS 24)
+    needs: [format, hlint]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install WasmEdge 0.17.1
+        run: |
+          curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh \
+            | sudo bash -s -- -v 0.17.1 -p /usr/local
+          sudo ldconfig
+          echo "LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH"   >> $GITHUB_ENV
+          echo "LIBRARY_PATH=/usr/local/lib:$LIBRARY_PATH"         >> $GITHUB_ENV
+          echo "C_INCLUDE_PATH=/usr/local/include:$C_INCLUDE_PATH" >> $GITHUB_ENV
+
+      - name: Build & run tests
+        uses: freckle/stack-action@v5
+        with:
+          stack-arguments: --stack-yaml stack-lts-24.yaml
+
+  # ─────────────────────────────────────────────────────────────────
+  # 3. cabal check + sdist + haddock
+  # ─────────────────────────────────────────────────────────────────
+  publish:
+    name: Publish to Hackage
+    needs: [test]
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up GHC 9.10 + Cabal
+        uses: haskell-actions/setup@v2
+        with:
+          ghc-version: '9.10.1'
+          cabal-version: '3.12.1.0'
+
+      - name: Cache Cabal store
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cabal/store
+            dist-newstyle
+          key: ${{ runner.os }}-ghc-9.10.1-${{ hashFiles('wasmedge-hs.cabal') }}
+          restore-keys: |
+            ${{ runner.os }}-ghc-9.10.1-
+
+      - name: Install WasmEdge 0.17.1
+        run: |
+          curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh \
+            | sudo bash -s -- -v 0.17.1 -p /usr/local
+          sudo ldconfig
+          echo "LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH"   >> $GITHUB_ENV
+          echo "LIBRARY_PATH=/usr/local/lib:$LIBRARY_PATH"         >> $GITHUB_ENV
+          echo "C_INCLUDE_PATH=/usr/local/include:$C_INCLUDE_PATH" >> $GITHUB_ENV
+
+      - name: cabal update
+        run: cabal update
+
+      - name: cabal check
+        run: cabal check
+
+      - name: Build source distribution tarball
+        run: cabal sdist
+
+      - name: Build Haddock documentation tarball
+        run: cabal haddock --haddock-for-hackage --enable-doc
+
+      - name: Extract version from cabal
+        id: version
+        run: |
+          VERSION=$(grep '^version:' wasmedge-hs.cabal | awk '{print $2}' | tr -d '[:space:]')
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "Releasing version: ${VERSION}"
+
+      - name: Upload package to Hackage
+        env:
+          HACKAGE_TOKEN: ${{ secrets.HACKAGE_TOKEN }}
+        run: |
+          SDIST_FILE=$(ls dist-newstyle/sdist/wasmedge-hs-*.tar.gz | head -n 1)
+          echo "Uploading package ${SDIST_FILE} to Hackage..."
+          curl --fail-with-body -X POST \
+            -H "Authorization: X-ApiKey ${HACKAGE_TOKEN}" \
+            -H "Accept: text/plain" \
+            -F "package=@${SDIST_FILE}" \
+            https://hackage.haskell.org/packages/
+
+      - name: Upload Haddock docs to Hackage
+        env:
+          HACKAGE_TOKEN: ${{ secrets.HACKAGE_TOKEN }}
+        run: |
+          DOCS_FILE=$(ls dist-newstyle/wasmedge-hs-*-docs.tar.gz | head -n 1)
+          echo "Uploading docs ${DOCS_FILE} to Hackage..."
+          BASENAME=$(basename "${DOCS_FILE}" -docs.tar.gz)
+          curl --fail-with-body -X PUT \
+            -H "Authorization: X-ApiKey ${HACKAGE_TOKEN}" \
+            -H "Content-Type: application/x-tar" \
+            -H "Content-Encoding: gzip" \
+            --data-binary "@${DOCS_FILE}" \
+            "https://hackage.haskell.org/package/${BASENAME}/docs"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "wasmedge-hs ${{ steps.version.outputs.version }}"
+          body_path: CHANGELOG.md
+          files: |
+            dist-newstyle/sdist/wasmedge-hs-*.tar.gz
+            dist-newstyle/wasmedge-hs-*-docs.tar.gz
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ─────────────────────────────────────────────────────────────────
+  # 4. Deploy Haddock to GitHub Pages
+  # ─────────────────────────────────────────────────────────────────
+  pages:
+    name: Deploy Haddock to GitHub Pages
+    needs: [publish]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up GHC 9.10 + Cabal
+        uses: haskell-actions/setup@v2
+        with:
+          ghc-version: '9.10.1'
+          cabal-version: '3.12.1.0'
+
+      - name: Cache Cabal store
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cabal/store
+            dist-newstyle
+          key: ${{ runner.os }}-ghc-9.10.1-pages-${{ hashFiles('wasmedge-hs.cabal') }}
+          restore-keys: |
+            ${{ runner.os }}-ghc-9.10.1-pages-
+
+      - name: Install WasmEdge 0.17.1
+        run: |
+          curl -sSf https://raw.githubusercontent.com/WasmEdge/WasmEdge/master/utils/install.sh \
+            | sudo bash -s -- -v 0.17.1 -p /usr/local
+          sudo ldconfig
+          echo "LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH"   >> $GITHUB_ENV
+          echo "LIBRARY_PATH=/usr/local/lib:$LIBRARY_PATH"         >> $GITHUB_ENV
+          echo "C_INCLUDE_PATH=/usr/local/include:$C_INCLUDE_PATH" >> $GITHUB_ENV
+
+      - name: cabal update
+        run: cabal update
+
+      - name: Build Haddock HTML
+        run: cabal haddock --enable-doc --haddock-html
+
+      - name: Collect docs
+        run: |
+          mkdir -p _site
+          DOC_DIR=$(find dist-newstyle -type d -name 'html' | head -n 1)
+          if [ -d "${DOC_DIR}" ]; then
+            cp -r "${DOC_DIR}/." _site/
+          else
+            find dist-newstyle -type d -name 'wasmedge-hs-*' | head -n 1 | xargs -I{} cp -r {}/. _site/
+          fi
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - id: deployment
+        name: Deploy to GitHub Pages
+        uses: actions/deploy-pages@v4

@@ -2,3 +2,13 @@ dist-newstyle/
 .stack-work/
 **/.stack-work/
 *.yaml.lock
+# OS artefacts
+.DS_Store
+Thumbs.db
+# Editor directories
+.idea/
+.vscode/
+*.swp
+*.swo
+# Haddock HTML output (built locally)
+/haddock/

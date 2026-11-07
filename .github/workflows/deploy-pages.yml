@@ -59,12 +59,17 @@ jobs:
       - name: Collect docs
         run: |
           mkdir -p _site
-          DOC_DIR=$(find dist-newstyle -type d -name 'html' | head -n 1)
-          if [ -d "${DOC_DIR}" ]; then
-            cp -r "${DOC_DIR}/." _site/
-          else
-            find dist-newstyle -type d -name 'wasmedge-hs-*' | head -n 1 | xargs -I{} cp -r {}/. _site/
+          DOC_DIR=$(find dist-newstyle -type d -name 'wasmedge-hs' -path '*/doc/html/*' | head -n 1)
+          if [ -z "${DOC_DIR}" ]; then
+            DOC_DIR=$(find dist-newstyle -type d -name 'html' | head -n 1)
           fi
+          echo "Found doc directory: ${DOC_DIR}"
+          # Copy Haddock docs to the root of _site so root URL serves index.html
+          cp -r "${DOC_DIR}/." _site/
+          # Also preserve wasmedge-hs/ subfolder so both root and subpath resolve
+          mkdir -p _site/wasmedge-hs
+          cp -r "${DOC_DIR}/." _site/wasmedge-hs/
+          ls -la _site/
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
